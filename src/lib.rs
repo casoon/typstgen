@@ -16,11 +16,9 @@
 //! # Ok::<(), typstgen::Error>(())
 //! ```
 //!
-//! See `docs/PLAN.md` in the repository for the implementation plan —
-//! [`compile`] is a stub until Phase 1 lands.
-
 pub mod config;
 pub mod error;
+mod world;
 
 #[cfg(feature = "wasm")]
 pub mod wasm;
@@ -44,14 +42,30 @@ pub fn compile(input: &Path, config: &Config) -> Result<Vec<u8>> {
     if !input.exists() {
         return Err(Error::InputNotFound(input.to_path_buf()));
     }
-    let _template_path = config.resolve_template_path()?;
+    let world = world::TypstWorld::from_file(input, config)?;
+    compile_world(&world)
+}
 
-    // TODO(Phase 1, see docs/PLAN.md): embed a typst::World implementation
-    // (adapt casoon/typst-business-templates:src/world.rs and
-    // casoon/renderreport:src/engine/world.rs — both already solve this,
-    // this crate should not solve it a third time from scratch) and drive
-    // `typst::compile` + `typst_pdf::pdf` from here.
-    Err(Error::NotImplemented(
-        "embedded typst::World compilation lands in Phase 1 — see docs/PLAN.md",
-    ))
+fn compile_world(world: &world::TypstWorld) -> Result<Vec<u8>> {
+    let document = typst::compile(world)
+        .output
+        .map_err(|errors| Error::Compile(format_diagnostics(&errors)))?;
+
+    typst_pdf::pdf(&document, &typst_pdf::PdfOptions::default())
+        .map_err(|errors| Error::Compile(format_diagnostics(&errors)))
+}
+
+fn format_diagnostics(errors: &[typst::diag::SourceDiagnostic]) -> String {
+    errors
+        .iter()
+        .map(|error| {
+            let hints = error
+                .hints
+                .iter()
+                .map(|hint| format!("\n  hint: {hint}"))
+                .collect::<String>();
+            format!("{}{}", error.message, hints)
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
 }

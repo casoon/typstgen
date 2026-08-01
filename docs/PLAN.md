@@ -94,30 +94,30 @@ Phase 1 — sonst blockiert ein Refactor von `renderreport` den Start von
 typstgen. Erst extrahieren, wenn zwei echte Nutzer (renderreport, typstgen)
 den gemeinsamen Code klar erkennen lassen, nicht vorher spekulativ bauen.
 
-## Phase 1 — Kernfunktion (aktueller Stand: Stub)
+## Phase 1 — Kernfunktion (erledigt)
 
-`src/lib.rs::compile()` wirft aktuell `Error::NotImplemented`. Zu tun:
+`src/lib.rs::compile()` kompiliert nun eingebettet über `typst::compile()` und
+`typst_pdf::pdf()`:
 
 1. `src/world.rs`: `typst::World`-Implementierung, angelehnt an
    `typst-business-templates/src/world.rs` — virtuelles Dateisystem, das
    `#import`-Pfade relativ zu `Config::resolve_template_path()` auflöst.
-2. Font-Loading: eingebettete Fallback-Fonts immer verfügbar
-   (`include_dir!` wie in `docgen`), System-Fonts nur wenn
-   `Config::use_system_fonts` UND nicht `target_arch = "wasm32"`.
-3. `compile()` verdrahten: `typst::compile()` → `typst_pdf::pdf()` →
-   `Vec<u8>`.
-4. Integrationstest: eine der echten `.typ`-Dateien aus
-   `casoon-documents/documents/` (z. B. ein CAS-KON-*.typ) als Fixture,
-   `typstgen compile` muss ein valides PDF erzeugen.
+2. Font-Loading: eingebettete Typst-Fallback-Fonts sind immer verfügbar;
+   System-Fonts werden nur nativ und nur bei `Config::use_system_fonts`
+   geladen.
+3. `compile()` ist mit `typst::compile()` → `typst_pdf::pdf()` → `Vec<u8>`
+   verdrahtet.
+4. Integrationstests validieren sowohl die Library als auch
+   `typstgen compile` mit einem konfigurierten Template-Import und einem
+   echten PDF-Header. Die vorhandenen CASOON-Dokumente verwenden zusätzlich
+   docgens `/data`- und `/locale`-Injection, die bewusst außerhalb dieses
+   Crate-Scopes liegt.
 
-## Phase 2 — Wasm
+## Phase 2 — Wasm (erledigt)
 
-`src/wasm.rs` ist aktuell auch Stub. Sobald Phase 1 steht: `compile()` für
-Wasm exponieren. Da kein Dateisystem verfügbar ist, muss die Wasm-API anders
-aussehen als die native (Pfade ergeben dort keinen Sinn) — Vorschlag analog
-zu `renderreport`s `render(request_json: &str)`: Quelltext + referenzierte
-Template-Dateien werden als JSON-Objekt (virtuelles Dateisystem) übergeben,
-nicht als Pfade.
+`src/wasm.rs::compile()` nimmt ein JSON-Objekt mit Quelltext und referenzierten
+Template-Dateien als virtuellem Dateisystem entgegen. Auf `wasm32` werden nur
+die eingebetteten Fallback-Fonts verwendet.
 
 ## Phase 3 — Konsolidierung (optional)
 

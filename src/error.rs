@@ -21,9 +21,6 @@ pub enum Error {
     #[error("typst compilation failed:\n{0}")]
     Compile(String),
 
-    #[error("not yet implemented: {0}")]
-    NotImplemented(&'static str),
-
     #[error(transparent)]
     Io(#[from] std::io::Error),
 }
