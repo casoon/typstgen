@@ -1,0 +1,63 @@
+[package]
+name = "typstgen"
+version = "0.1.0"
+edition = "2021"
+authors = ["Casoon <info@casoon.de>"]
+description = "Compile existing .typ files to PDF with an embedded Typst engine — no external typst binary, config-driven template resolution. Usable as CLI, Rust lib, and Wasm."
+homepage = "https://github.com/casoon/typstgen"
+repository = "https://github.com/casoon/typstgen"
+documentation = "https://docs.rs/typstgen"
+license = "MIT"
+keywords = ["typst", "pdf", "cli", "wasm", "template"]
+categories = ["text-processing", "rendering", "command-line-utilities"]
+readme = "README.md"
+rust-version = "1.89"
+exclude = ["target/", ".github/", "docs/", "fixtures/"]
+
+[lib]
+name = "typstgen"
+path = "src/lib.rs"
+crate-type = ["rlib", "cdylib"]
+
+[[bin]]
+name = "typstgen"
+path = "src/bin/typstgen.rs"
+required-features = ["cli"]
+
+[dependencies]
+# Typst as embedded library — no CLI/subprocess dependency
+typst = "0.13"
+typst-pdf = "0.13"
+
+# Font handling (embedded fallback fonts always available; system-font
+# scanning via fontdb is native-only, never used in wasm builds)
+fontdb = "0.22"
+
+# Config file (typstgen.toml) + data
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+toml = "0.8"
+
+# Error handling
+anyhow = "1.0"
+thiserror = "2.0"
+
+# Embed default templates/fonts at compile time
+include_dir = "0.7"
+
+# CLI (optional)
+clap = { version = "4.5", features = ["derive"], optional = true }
+
+# Wasm bindings (optional)
+wasm-bindgen = { version = "0.2", optional = true }
+
+[features]
+default = ["cli"]
+cli = ["dep:clap"]
+wasm = ["dep:wasm-bindgen"]
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true

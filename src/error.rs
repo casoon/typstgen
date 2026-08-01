@@ -1,0 +1,31 @@
+use std::path::PathBuf;
+
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+    #[error("input file not found: {0}")]
+    InputNotFound(PathBuf),
+
+    #[error("no template path configured or found for import resolution")]
+    TemplatePathNotFound,
+
+    #[error("failed to read config at {path}: {source}")]
+    Config {
+        path: PathBuf,
+        #[source]
+        source: std::io::Error,
+    },
+
+    #[error("invalid config: {0}")]
+    InvalidConfig(#[from] toml::de::Error),
+
+    #[error("typst compilation failed:\n{0}")]
+    Compile(String),
+
+    #[error("not yet implemented: {0}")]
+    NotImplemented(&'static str),
+
+    #[error(transparent)]
+    Io(#[from] std::io::Error),
+}
+
+pub type Result<T> = std::result::Result<T, Error>;
