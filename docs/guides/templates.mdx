@@ -1,0 +1,69 @@
+---
+title: Templates and imports
+description: How typstgen picks a template directory and where it looks for the files a document imports.
+order: 1
+---
+
+Typst documents pull shared layouts in with `#import`. typstgen decides where those files are found,
+based on `template_paths` in [`typstgen.toml`](../../reference/configuration/).
+
+## Which template directory is used
+
+1. typstgen reads the config: the file given with `--config`, otherwise `./typstgen.toml` if it
+   exists, otherwise the built-in defaults `./templates` and `./.typstgen/templates`.
+2. It walks `template_paths` in order and takes the **first directory that exists**. Only that one
+   is used; later entries are fallbacks, not additional search paths.
+3. If none exists, compilation stops before Typst runs, even for a document without imports:
+
+   ```text
+   error: no template path configured or found for import resolution
+   ```
+
+Relative paths are resolved against the working directory, not against the location of
+`typstgen.toml`. Run typstgen from the folder the config was written for, or use absolute paths.
+
+<Callout type="tip">
+  Add `"."` as the last entry if you also compile documents that don't need templates: the working
+  directory always exists, so the command never fails for lack of a template path.
+</Callout>
+
+## Where imports are looked up
+
+With a relative template path (the usual case), the input file becomes the root file of a small
+virtual filesystem. Every path in the document, `#import "letterhead.typ"` as well as
+`#import "/letterhead.typ"`, `image(…)` or `read(…)`, is looked up in two places, in this order:
+
+1. the folder that contains the input file,
+2. the template directory.
+
+The first file that exists wins. `..` cannot leave these two folders.
+
+```text
+project/
+├── typstgen.toml          template_paths = ["templates"]
+├── templates/
+│   └── letterhead.typ
+└── letter.typ             #import "letterhead.typ": letterhead
+```
+
+`letter.typ` finds `letterhead.typ` in `templates/`, because there is no file of that name next to
+it. This is the layout of the [letter example](../../../showcase/letter/).
+
+If a file is in neither place, Typst reports the virtual path it searched:
+
+```text
+error: typst compilation failed:
+file not found (searched at /footer.typ)
+```
+
+## Documents inside an absolute template directory
+
+When the template path is absolute and the input file lies inside it, the template directory is the
+only root. Imports are then resolved relative to the input's position in that directory, and
+paths starting with `/` from the directory itself.
+
+## Typst packages
+
+Package imports such as `#import "@preview/…"` are not resolved: typstgen has no package cache and
+does not download anything. Vendor the package files into your template directory and import them
+by path instead.

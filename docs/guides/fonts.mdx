@@ -1,0 +1,56 @@
+---
+title: Fonts
+description: The fonts compiled into every typstgen build, and how to add system or project fonts.
+order: 2
+---
+
+## Bundled fonts
+
+typstgen embeds Typst's fallback fonts from `typst-assets` 0.13 into every build, including Wasm.
+A document that only uses these renders the same on any machine, with nothing installed.
+
+| Family | Files | Typst default for |
+| --- | --- | --- |
+| Libertinus Serif | Regular, Italic, Semibold, Semibold Italic, Bold, Bold Italic | Body text |
+| New Computer Modern | Regular, Italic, Bold, Bold Italic | – |
+| New Computer Modern Math | Regular, Book, Bold | Math |
+| DejaVu Sans Mono | Regular, Oblique, Bold, Bold Oblique | Raw text and code |
+
+That is 17 font files. The [fonts example](../../../showcase/fonts/) sets each family and was
+compiled with system fonts turned off.
+
+## System fonts
+
+On native builds, `use_system_fonts` (default `true`) adds every font installed on the machine.
+This is convenient for local work, but the PDF then depends on which fonts that machine has.
+
+## Project fonts
+
+`font_paths` adds fonts that ship with your project. Each entry may be a directory or a single
+font file:
+
+```toml
+template_paths = ["templates"]
+font_paths = ["fonts", "brand/Inter-Variable.ttf"]
+use_system_fonts = false
+```
+
+Relative paths are resolved against the working directory. Entries that don't exist are skipped
+without an error.
+
+## Reproducible PDFs
+
+For output that doesn't change between machines, commit the fonts you use, list them in
+`font_paths` and set `use_system_fonts = false`. The showcase fixtures are built this way:
+regenerating them without changes produces byte-identical PDFs.
+
+<Callout type="caution">
+  typstgen does not print Typst warnings. A misspelled or missing font family does not fail the
+  build; Typst silently falls back to another font. Check the PDF, or keep system fonts off so a
+  missing font can't be masked by an installed one.
+</Callout>
+
+## Wasm
+
+The Wasm build has no filesystem: it uses the bundled fonts only, and `font_paths` and
+`use_system_fonts` do not apply.

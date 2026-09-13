@@ -1,0 +1,7 @@
+# Configuration for the example documents in this folder.
+# Paths are relative to the working directory, so run typstgen from here
+# (regenerate.sh does that).
+template_paths = ["templates"]
+
+# Bundled fonts only: the PDFs come out the same on every machine.
+use_system_fonts = false
