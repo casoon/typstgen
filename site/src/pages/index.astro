@@ -1,0 +1,95 @@
+---
+import {
+  Badge,
+  Badges,
+  BuildOutput,
+  CodeBlock,
+  Facts,
+  Features,
+  Hero,
+  Install,
+  Quickstart,
+  Terminal,
+} from '@casoon/pages-theme/components';
+import Base from '@casoon/pages-theme/layouts/Base.astro';
+import compileHelp from '../../../examples/compile-help.txt?raw';
+import { pdfViewer } from '../showcase';
+
+const quickstart = `# typstgen.toml
+template_paths = ["templates"]
+
+# letter.typ imports templates/letterhead.typ
+typstgen compile letter.typ
+# → letter.pdf`;
+---
+
+<Base>
+  <Hero
+    title="Typst in, PDF out."
+    lead="typstgen compiles an existing .typ file to PDF with the Typst engine built in: no typst binary, no subprocess. Template directories come from a config file instead of hardcoded paths."
+  >
+    <Install
+      commands={[
+        { label: 'cargo', command: 'cargo install typstgen' },
+        { label: 'git', command: 'cargo install --git https://github.com/casoon/typstgen' },
+        { label: 'library', command: 'cargo add typstgen --no-default-features' },
+      ]}
+    />
+    <Badges>
+      <Badge>MIT</Badge>
+      <Badge>crates.io 0.1.0</Badge>
+      <Badge>Rust 1.89+</Badge>
+      <Badge>Typst 0.13</Badge>
+    </Badges>
+    <Terminal slot="output" title="typstgen compile --help" dots ansi={compileHelp} />
+  </Hero>
+
+  <Facts
+    items={[
+      { value: '0', label: 'external typst binaries or subprocesses' },
+      { value: '17', label: 'bundled font files, also in Wasm' },
+      { value: '3', label: 'entry points: CLI, Rust library, Wasm' },
+      { value: '3', label: 'keys in typstgen.toml' },
+    ]}
+  />
+
+  <Features
+    items={[
+      {
+        title: 'Typst as a library',
+        body: 'typst and typst-pdf 0.13 are compiled into typstgen. The CLI writes the PDF; the library returns its bytes.',
+      },
+      {
+        title: 'Template paths from config',
+        body: 'typstgen.toml lists template directories in order of preference. Imports resolve against the first one that exists, next to the document’s own folder.',
+      },
+      {
+        title: 'Fonts you can rely on',
+        body: 'Typst’s fallback fonts are always bundled. Turn system fonts off and add project fonts, and the same input gives the same PDF on every machine.',
+      },
+      {
+        title: 'Runs in Wasm',
+        body: 'The wasm feature takes the source and its imports as a JSON virtual filesystem and returns the PDF bytes. No filesystem needed.',
+      },
+    ]}
+  />
+
+  <BuildOutput
+    heading="Compiled by typstgen"
+    caption="examples/letter.typ imports a template from examples/templates/. typstgen compiled it to this PDF; examples/regenerate.sh rebuilds all fixtures with the current CLI."
+    file="examples/letter.pdf"
+  >
+    <div style="padding:18px"><Fragment set:html={pdfViewer('letter', 'letter.pdf, compiled by typstgen')} /></div>
+  </BuildOutput>
+
+  <Quickstart
+    lead="Three steps from a .typ file to a PDF. The documentation covers template lookup, fonts and the config file."
+    steps={[
+      'Install the CLI with <code>cargo install typstgen</code>.',
+      'List your template directories in <code>typstgen.toml</code>.',
+      'Run <code>typstgen compile</code> on your document.',
+    ]}
+  >
+    <CodeBlock code={quickstart} lang="shell" title="terminal" label="Shell" />
+  </Quickstart>
+</Base>

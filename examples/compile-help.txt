@@ -1,0 +1,11 @@
+Compile a single .typ file to PDF
+
+Usage: typstgen compile [OPTIONS] <INPUT>
+
+Arguments:
+  <INPUT>  Path to the .typ file
+
+Options:
+  -o, --output <OUTPUT>  Output PDF path (defaults to input with .pdf extension)
+  -c, --config <CONFIG>  Path to typstgen.toml (defaults to ./typstgen.toml if present)
+  -h, --help             Print help

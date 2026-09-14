@@ -12,7 +12,7 @@ keywords = ["typst", "pdf", "cli", "wasm", "template"]
 categories = ["text-processing", "rendering", "command-line-utilities"]
 readme = "README.md"
 rust-version = "1.89"
-exclude = ["target/", ".github/", "docs/", "fixtures/"]
+exclude = ["target/", ".github/", "docs/", "fixtures/", "site/", "examples/"]
 
 [lib]
 name = "typstgen"

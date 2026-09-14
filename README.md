@@ -4,6 +4,8 @@ Compile an existing `.typ` file to PDF. No external `typst` binary, no
 subprocess — Typst runs embedded as a Rust library. Template resolution is
 config-driven instead of hardcoded.
 
+**Website and documentation:** [casoon.github.io/typstgen](https://casoon.github.io/typstgen/)
+
 ```
 your-document.typ  +  typstgen.toml (template_paths)  →  your-document.pdf
 ```

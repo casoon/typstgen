@@ -1,0 +1,65 @@
+---
+title: Installation
+description: typstgen ships as one crate on crates.io. Install the CLI with cargo, or add the crate as a library.
+order: 1
+---
+
+<Tabs
+  label="Installation"
+  tabs={[
+    { id: 'cli', label: 'CLI' },
+    { id: 'git', label: 'From git' },
+    { id: 'library', label: 'Library' },
+  ]}
+>
+<div slot="cli">
+
+```sh
+cargo install typstgen
+typstgen --version
+```
+
+</div>
+<div slot="git">
+
+Installs the current state of the `master` branch instead of the last release:
+
+```sh
+cargo install --git https://github.com/casoon/typstgen
+```
+
+</div>
+<div slot="library">
+
+The CLI is behind the default `cli` feature. Turn default features off to skip `clap` when you only
+need the library:
+
+```sh
+cargo add typstgen --no-default-features
+```
+
+</div>
+</Tabs>
+
+## Requirements
+
+| | Minimum | Notes |
+| --- | --- | --- |
+| Rust | `1.89` | `rust-version` in `Cargo.toml`, edition 2021 |
+| Typst | – | Embedded: typstgen 0.1.0 compiles with `typst` and `typst-pdf` 0.13 |
+
+No `typst` binary and no system fonts are needed. Typst's fallback fonts are compiled into every
+build, see [Fonts](../../guides/fonts/).
+
+## Features
+
+| Feature | Default | Adds |
+| --- | --- | --- |
+| `cli` | yes | The `typstgen` binary (via `clap`) |
+| `wasm` | no | A `wasm-bindgen` export for JavaScript hosts |
+
+The Wasm build is covered in the [Rust and Wasm reference](../../reference/library/#wasm).
+
+## Next steps
+
+Continue with the [Quickstart](../quickstart/).

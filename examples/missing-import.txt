@@ -1,0 +1,2 @@
+error: typst compilation failed:
+file not found (searched at /footer.typ)
