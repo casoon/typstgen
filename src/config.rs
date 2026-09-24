@@ -17,8 +17,9 @@ use crate::error::{Error, Result};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Config {
-    /// Directories searched (in order) for `#import` package resolution.
-    /// First entry that exists wins.
+    /// Directories searched (in order) for `#import` resolution. Each import
+    /// is looked up in every existing directory; the first match wins.
+    /// Entries that do not exist or are not directories are skipped.
     pub template_paths: Vec<PathBuf>,
     /// Additional font directories (native builds only).
     pub font_paths: Vec<PathBuf>,
@@ -62,12 +63,17 @@ impl Config {
         Ok(toml::from_str(&raw)?)
     }
 
-    /// First configured template directory that actually exists on disk.
-    pub fn resolve_template_path(&self) -> Result<PathBuf> {
-        self.template_paths
-            .iter()
-            .find(|path| path.exists())
-            .cloned()
-            .ok_or(Error::TemplatePathNotFound)
+    /// Configured template directories that exist on disk, in order,
+    /// canonicalized and without duplicates. May be empty.
+    pub fn template_roots(&self) -> Vec<PathBuf> {
+        let mut roots = Vec::new();
+        for path in &self.template_paths {
+            if let Ok(root) = path.canonicalize() {
+                if root.is_dir() && !roots.contains(&root) {
+                    roots.push(root);
+                }
+            }
+        }
+        roots
     }
 }

@@ -5,9 +5,6 @@ pub enum Error {
     #[error("input file not found: {0}")]
     InputNotFound(PathBuf),
 
-    #[error("no template path configured or found for import resolution")]
-    TemplatePathNotFound,
-
     #[error("failed to read config at {path}: {source}")]
     Config {
         path: PathBuf,

@@ -32,9 +32,6 @@ typst-pdf = "0.13"
 # wasm, where system fonts are unavailable).
 typst-assets = { version = "0.13", features = ["fonts"] }
 
-# Font handling (embedded fallback fonts always available; system-font
-# scanning via fontdb is native-only, never used in wasm builds)
-fontdb = "0.22"
 
 # Config file (typstgen.toml) + data
 serde = { version = "1.0", features = ["derive"] }
@@ -44,14 +41,18 @@ toml = "0.8"
 # Error handling
 thiserror = "2.0"
 
-# Native date support for Typst's `datetime.today()`.
-chrono = "0.4"
-
 # CLI (optional)
 clap = { version = "4.5", features = ["derive"], optional = true }
 
 # Wasm bindings (optional)
 wasm-bindgen = { version = "0.2", optional = true }
+
+# System-font and font-directory scanning (native builds only; wasm uses the
+# embedded fonts from typst-assets).
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+fontdb = "0.22"
+# Date support for Typst's `datetime.today()`.
+chrono = "0.4"
 
 [features]
 default = ["cli"]
@@ -60,6 +61,8 @@ wasm = ["dep:wasm-bindgen"]
 
 [dev-dependencies]
 tempfile = "3.8"
+chrono = "0.4"
+serde_json = "1.0"
 
 [profile.release]
 opt-level = 3

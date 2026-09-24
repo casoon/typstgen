@@ -30,14 +30,14 @@ use std::path::Path;
 
 /// Compile a `.typ` file to PDF bytes using the embedded Typst engine.
 ///
-/// `#import` targets inside the file are resolved against
-/// [`Config::resolve_template_path`].
+/// `#import` targets inside the file are resolved against the input's own
+/// directory and every directory from [`Config::template_roots`]. Template
+/// directories are optional: a document without imports needs none.
 ///
 /// # Errors
 ///
 /// Returns [`Error::InputNotFound`] if `input` does not exist, or
-/// [`Error::TemplatePathNotFound`] if no configured template directory
-/// exists on disk.
+/// [`Error::Compile`] if Typst reports errors.
 pub fn compile(input: &Path, config: &Config) -> Result<Vec<u8>> {
     if !input.exists() {
         return Err(Error::InputNotFound(input.to_path_buf()));
