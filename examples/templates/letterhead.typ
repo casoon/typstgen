@@ -1,5 +1,5 @@
-// A small letter template. Documents import it by file name; typstgen finds
-// it in the first existing entry of `template_paths`.
+// A small letter template. Documents import it by file name; typstgen looks
+// it up in every existing entry of `template_paths`.
 #let letterhead(sender: none, recipient: none, date: none, subject: none, body) = {
   set page(paper: "a4", margin: (x: 25mm, top: 20mm, bottom: 25mm))
   set text(size: 11pt)

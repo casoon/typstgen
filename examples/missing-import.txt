@@ -1,2 +1,2 @@
 error: typst compilation failed:
-file not found (searched at /footer.typ)
+missing-import.typ:2:9: error: file not found (searched at /footer.typ)

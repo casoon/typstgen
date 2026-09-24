@@ -72,6 +72,7 @@ export const collections = { docs: docsCollection() };
 | `docsGroups` | `{}` | Sidebar groups: folder in `docs/` → label, in order. Root pages join the first group |
 | `changelog` | `../CHANGELOG.md` | Path relative to `site/`, or `false` |
 | `showcase` | `./src/showcase.ts` | Module exporting `examples: ShowcaseExample[]`, or `false` |
+| `demo` | `false` | Header label of a live demo page; the project supplies `src/pages/demo.astro` |
 
 ### Routes
 
@@ -81,6 +82,7 @@ export const collections = { docs: docsCollection() };
 | `/docs/…` | `docs/**/*.{md,mdx}`; `docs/index.md` becomes `/docs/` |
 | `/showcase/`, `/showcase/<slug>/` | `examples` from the showcase module |
 | `/changelog/` | `CHANGELOG.md` (`## [x.y.z] - YYYY-MM-DD`, `### Added` …, `### Breaking`) |
+| `/demo/` | the project's `src/pages/demo.astro`, linked once `demo` is set |
 | `/404` | theme |
 
 ### Docs frontmatter
@@ -112,16 +114,41 @@ Import from `@casoon/pages-theme/components` in `.astro` files; available direct
 | `ApiEntry` | API overview entry; item-level docs stay on docs.rs / TypeDoc |
 | `Swatch` | Colour token preview |
 | `ExamplePanel` | Input next to output; used by the showcase routes |
+| `Demo` | Stage for the project running live in the page; see „Live demo" |
 
 `@casoon/pages-theme/ansi` exports `ansiToHtml` and `escapeAnsi` for projects without their
-own renderer. `@casoon/pages-theme/layouts/Base.astro` wraps custom pages in the frame.
+own renderer. `@casoon/pages-theme/layouts/Base.astro` wraps custom pages in the frame, and
+`@casoon/pages-theme/url` exports `url()` — a project page that links or loads something
+site-internal needs it, because the base path changes per project.
+
+## Live demo
+
+The showcase shows what a package produced at build time. A demo shows the package itself,
+running in the visitor's browser — for projects whose point only becomes visible in motion.
+
+Set `demo: '<label>'` for the header entry and write `site/src/pages/demo.astro`; the theme
+injects no route, so the page is the project's own. Wrap the running instance in the `Demo`
+component and put everything it needs, including its `<script is:inline>`, in the default
+slot.
+
+The component marks its stage `data-demo`, and that mark carries two exceptions from the
+rules below — nowhere else on the site:
+
+- The demo's own scripts live inside the stage. Outside it, the two inline scripts stay the
+  limit.
+- `check-site.cjs` excludes the stage from axe. A demo may deliberately exhibit what the
+  project reports on; a broken form inside the stage is the exhibit, not a defect of the
+  page.
+
+Everything else still holds, the origin rule above all: a demo loads its code from the site
+itself. One that needs a CDN cannot ship here.
 
 ## Rules the theme enforces
 
 - No external requests: fonts are bundled (Onest, JetBrains Mono, Latin subset), no CDNs,
   embeds, analytics or cookies.
 - JavaScript: two small inline scripts (theme before first paint; theme toggle and copy
-  buttons). Tabs work without JavaScript.
+  buttons). Tabs work without JavaScript. The one exception is a `Demo` stage, see above.
 - Footer on every page: "Ein Projekt von CASOON · Jörn Seidel", licence, Impressum and
   Datenschutz (casoon.de), "Weitere Projekte" (casoon.dev).
 - Light and dark theme, following `prefers-color-scheme` until the visitor chooses.

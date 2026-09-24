@@ -45,10 +45,13 @@ fn main() -> ExitCode {
                 }
             };
 
-            match typstgen::compile(&input, &config) {
-                Ok(pdf_bytes) => {
+            match typstgen::compile_with_warnings(&input, &config) {
+                Ok(compiled) => {
+                    for warning in &compiled.warnings {
+                        eprintln!("{warning}");
+                    }
                     let output = output.unwrap_or_else(|| input.with_extension("pdf"));
-                    if let Err(err) = std::fs::write(&output, pdf_bytes) {
+                    if let Err(err) = std::fs::write(&output, compiled.pdf) {
                         eprintln!("error: failed to write {}: {err}", output.display());
                         return ExitCode::FAILURE;
                     }

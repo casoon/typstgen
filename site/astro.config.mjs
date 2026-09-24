@@ -24,8 +24,6 @@ export default defineConfig({
         guides: 'Guides',
         reference: 'Reference',
       },
-      // typstgen has no CHANGELOG.md and no release tags yet.
-      changelog: false,
     }),
   ],
 });

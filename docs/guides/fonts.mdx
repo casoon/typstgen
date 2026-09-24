@@ -6,7 +6,7 @@ order: 2
 
 ## Bundled fonts
 
-typstgen embeds Typst's fallback fonts from `typst-assets` 0.13 into every build, including Wasm.
+typstgen embeds Typst's fallback fonts from `typst-assets` 0.15 into every build, including Wasm.
 A document that only uses these renders the same on any machine, with nothing installed.
 
 | Family | Files | Typst default for |
@@ -45,9 +45,9 @@ For output that doesn't change between machines, commit the fonts you use, list 
 regenerating them without changes produces byte-identical PDFs.
 
 <Callout type="caution">
-  typstgen does not print Typst warnings. A misspelled or missing font family does not fail the
-  build; Typst silently falls back to another font. Check the PDF, or keep system fonts off so a
-  missing font can't be masked by an installed one.
+  A misspelled or missing font family does not fail the build: Typst falls back to another font
+  and reports a warning, which the CLI prints to stderr. Keep system fonts off so a missing font
+  can't be masked by an installed one.
 </Callout>
 
 ## Wasm

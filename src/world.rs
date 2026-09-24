@@ -4,40 +4,82 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{OnceLock, RwLock};
 
-use fontdb::Database;
 use typst::diag::{FileError, FileResult};
-use typst::foundations::{Bytes, Datetime};
-use typst::syntax::{FileId, Source, VirtualPath};
+use typst::foundations::{Bytes, Datetime, Duration};
+use typst::syntax::{FileId, RootedPath, Source, VirtualPath, VirtualRoot};
 use typst::text::{Font, FontBook};
-use typst::{Library, World};
+use typst::{Library, LibraryExt, World};
 
 use crate::{Config, Result};
 
-/// A cache of font metadata and data used by Typst during one compilation.
+/// Font metadata for Typst plus lazily loaded font data. The bundled fonts
+/// are static and loaded up front; fonts found on disk are only read into
+/// memory when Typst actually uses them.
 struct FontCache {
     book: typst::utils::LazyHash<FontBook>,
-    fonts: Vec<Font>,
+    fonts: Vec<FontSlot>,
+}
+
+/// A single font face, either already loaded or located in a file on disk.
+struct FontSlot {
+    #[cfg(not(target_arch = "wasm32"))]
+    path: Option<PathBuf>,
+    #[cfg(not(target_arch = "wasm32"))]
+    index: u32,
+    font: OnceLock<Option<Font>>,
+}
+
+impl FontSlot {
+    fn loaded(font: Font) -> Self {
+        Self {
+            #[cfg(not(target_arch = "wasm32"))]
+            path: None,
+            #[cfg(not(target_arch = "wasm32"))]
+            index: 0,
+            font: OnceLock::from(Some(font)),
+        }
+    }
+
+    fn get(&self) -> Option<Font> {
+        self.font
+            .get_or_init(|| {
+                #[cfg(not(target_arch = "wasm32"))]
+                {
+                    let data = std::fs::read(self.path.as_ref()?).ok()?;
+                    Font::new(Bytes::new(data), self.index)
+                }
+                #[cfg(target_arch = "wasm32")]
+                {
+                    None
+                }
+            })
+            .clone()
+    }
 }
 
 impl FontCache {
     fn new(config: Option<&Config>) -> Self {
-        let mut database = Database::new();
+        let mut book = FontBook::new();
+        let mut fonts = Vec::new();
+
+        // The bundled Typst fonts ensure every target, especially wasm, can
+        // render a document without depending on host-installed fonts.
+        for data in typst_assets::fonts() {
+            for font in Font::iter(Bytes::new(data)) {
+                book.push(font.info().clone());
+                fonts.push(FontSlot::loaded(font));
+            }
+        }
 
         #[cfg(target_arch = "wasm32")]
         let _ = config;
 
-        // The bundled Typst fonts ensure every target, especially wasm, can
-        // render a document without depending on host-installed fonts.
-        for font in typst_assets::fonts() {
-            database.load_font_data(font.to_vec());
-        }
-
         #[cfg(not(target_arch = "wasm32"))]
         if let Some(config) = config {
+            let mut database = fontdb::Database::new();
             if config.use_system_fonts {
                 database.load_system_fonts();
             }
-
             for path in &config.font_paths {
                 if path.is_dir() {
                     database.load_fonts_dir(path);
@@ -45,22 +87,32 @@ impl FontCache {
                     let _ = database.load_font_file(path);
                 }
             }
-        }
 
-        let mut book = FontBook::new();
-        let mut fonts = Vec::new();
-        for face in database.faces() {
-            let data = match &face.source {
-                fontdb::Source::File(path) => std::fs::read(path).ok(),
-                fontdb::Source::Binary(data) => Some(data.as_ref().as_ref().to_vec()),
-                fontdb::Source::SharedFile(_, data) => Some(data.as_ref().as_ref().to_vec()),
-            };
+            // fontdb lists every face of a collection (.ttc/.otc) separately;
+            // register each file's faces exactly once, reading fontdb's
+            // (memory-mapped) data instead of loading the file again.
+            let mut seen = std::collections::HashSet::new();
+            let faces: Vec<_> = database
+                .faces()
+                .filter_map(|face| match &face.source {
+                    fontdb::Source::File(path) | fontdb::Source::SharedFile(path, _) => {
+                        seen.insert(path.clone()).then(|| (face.id, path.clone()))
+                    }
+                    fontdb::Source::Binary(_) => None,
+                })
+                .collect();
 
-            if let Some(data) = data {
-                for font in Font::iter(Bytes::new(data)) {
-                    book.push(font.info().clone());
-                    fonts.push(font);
-                }
+            for (id, path) in faces {
+                database.with_face_data(id, |data, _| {
+                    for (index, info) in typst::text::FontInfo::iter(data).enumerate() {
+                        book.push(info);
+                        fonts.push(FontSlot {
+                            path: Some(path.clone()),
+                            index: index as u32,
+                            font: OnceLock::new(),
+                        });
+                    }
+                });
             }
         }
 
@@ -69,6 +121,11 @@ impl FontCache {
             fonts,
         }
     }
+}
+
+/// The id of a file in the project (not in a package).
+fn project_file(path: VirtualPath) -> FileId {
+    RootedPath::new(VirtualRoot::Project, path).intern()
 }
 
 /// Lazy cache entry for a file in the virtual filesystem.
@@ -95,31 +152,33 @@ pub(crate) struct TypstWorld {
     files: RwLock<HashMap<FileId, FileSlot>>,
     roots: Vec<PathBuf>,
     #[cfg(not(target_arch = "wasm32"))]
-    now: OnceLock<Option<Datetime>>,
+    now: OnceLock<chrono::DateTime<chrono::Utc>>,
 }
 
 impl TypstWorld {
-    /// Create a native world for `input`. Template paths are roots of the
-    /// virtual filesystem; imports first use the input's project root where
-    /// possible, then the configured template root.
+    /// Create a native world for `input`. The project root is the first
+    /// template directory that contains `input`, otherwise the input's own
+    /// directory. Imports are looked up in the project root first, then in
+    /// every other existing template directory.
     pub(crate) fn from_file(input: &Path, config: &Config) -> Result<Self> {
-        let template_root = config.resolve_template_path()?;
         let input = input.canonicalize()?;
         let source = std::fs::read_to_string(&input)?;
+        let template_roots = config.template_roots();
 
-        let (main_path, roots) = match VirtualPath::within_root(&input, &template_root) {
-            Some(path) => (path, vec![template_root]),
-            None => {
-                let input_root = input.parent().unwrap_or(Path::new(".")).to_path_buf();
-                (
-                    VirtualPath::new("main.typ"),
-                    vec![input_root, template_root],
-                )
-            }
-        };
+        let project_root = template_roots
+            .iter()
+            .find(|root| input.starts_with(root))
+            .cloned()
+            .unwrap_or_else(|| input.parent().unwrap_or(Path::new("/")).to_path_buf());
+        let main_path = VirtualPath::virtualize(&project_root, &input)
+            .map_err(|error| std::io::Error::other(format!("{}: {error}", input.display())))?;
+
+        let mut roots = template_roots;
+        roots.retain(|root| *root != project_root);
+        roots.insert(0, project_root);
 
         Ok(Self::new(
-            FileId::new(None, main_path),
+            project_file(main_path),
             source,
             roots,
             Some(config),
@@ -131,20 +190,18 @@ impl TypstWorld {
     #[cfg(feature = "wasm")]
     pub(crate) fn from_virtual(
         source: String,
-        files: impl IntoIterator<Item = (PathBuf, Vec<u8>)>,
-    ) -> Self {
-        let world = Self::new(
-            FileId::new(None, VirtualPath::new("main.typ")),
-            source,
-            vec![],
-            None,
-        );
+        files: impl IntoIterator<Item = (String, Vec<u8>)>,
+    ) -> std::result::Result<Self, String> {
+        let main = VirtualPath::new("main.typ").expect("valid virtual path");
+        let world = Self::new(project_file(main), source, vec![], None);
 
         for (path, contents) in files {
-            world.add_file(path, contents);
+            let vpath = VirtualPath::new(&path)
+                .map_err(|error| format!("invalid path {path:?}: {error}"))?;
+            world.add_file(vpath, contents);
         }
 
-        world
+        Ok(world)
     }
 
     fn new(main_id: FileId, source: String, roots: Vec<PathBuf>, config: Option<&Config>) -> Self {
@@ -160,8 +217,8 @@ impl TypstWorld {
     }
 
     #[cfg(feature = "wasm")]
-    fn add_file(&self, path: PathBuf, contents: Vec<u8>) {
-        let id = FileId::new(None, VirtualPath::new(path));
+    fn add_file(&self, path: VirtualPath, contents: Vec<u8>) {
+        let id = project_file(path);
         let mut files = self
             .files
             .write()
@@ -185,7 +242,7 @@ impl TypstWorld {
 
         let result = self
             .path_for(id)
-            .ok_or_else(|| FileError::NotFound(id.vpath().as_rooted_path().to_path_buf()))
+            .ok_or_else(|| FileError::NotFound(id.vpath().get_with_slash().into()))
             .and_then(|path| load(&path));
 
         let mut files = self
@@ -196,14 +253,29 @@ impl TypstWorld {
         cell(slot).get_or_init(|| result.clone()).clone()
     }
 
+    /// The path shown in diagnostics: the real file, relative to the working
+    /// directory where possible, otherwise the virtual path.
+    pub(crate) fn display_path(&self, id: FileId) -> String {
+        let Some(path) = self.path_for(id) else {
+            return id.vpath().get_without_slash().to_owned();
+        };
+        std::env::current_dir()
+            .ok()
+            .and_then(|cwd| cwd.canonicalize().ok())
+            .and_then(|cwd| path.strip_prefix(cwd).ok().map(Path::to_path_buf))
+            .unwrap_or(path)
+            .display()
+            .to_string()
+    }
+
     fn path_for(&self, id: FileId) -> Option<PathBuf> {
-        if id.package().is_some() {
+        if *id.root() != VirtualRoot::Project {
             return None;
         }
 
         self.roots
             .iter()
-            .filter_map(|root| id.vpath().resolve(root))
+            .filter_map(|root| id.vpath().realize(root).ok())
             .find(|path| path.is_file())
     }
 }
@@ -259,28 +331,33 @@ impl World for TypstWorld {
     }
 
     fn font(&self, index: usize) -> Option<Font> {
-        self.fonts.fonts.get(index).cloned()
+        self.fonts.fonts.get(index)?.get()
     }
 
-    fn today(&self, _offset: Option<i64>) -> Option<Datetime> {
+    fn today(&self, offset: Option<Duration>) -> Option<Datetime> {
         #[cfg(target_arch = "wasm32")]
         {
+            let _ = offset;
             None
         }
 
         #[cfg(not(target_arch = "wasm32"))]
         {
-            *self.now.get_or_init(|| {
-                let now = chrono::Local::now();
-                Datetime::from_ymd_hms(
-                    now.format("%Y").to_string().parse().ok()?,
-                    now.format("%m").to_string().parse().ok()?,
-                    now.format("%d").to_string().parse().ok()?,
-                    now.format("%H").to_string().parse().ok()?,
-                    now.format("%M").to_string().parse().ok()?,
-                    now.format("%S").to_string().parse().ok()?,
-                )
-            })
+            use chrono::Datelike;
+
+            // One timestamp per compilation, so every call agrees.
+            let now = *self.now.get_or_init(chrono::Utc::now);
+            let date = match offset {
+                None => now.with_timezone(&chrono::Local).date_naive(),
+                Some(offset) => {
+                    (now + chrono::Duration::try_seconds(offset.seconds() as i64)?).date_naive()
+                }
+            };
+            Datetime::from_ymd(
+                date.year(),
+                date.month().try_into().ok()?,
+                date.day().try_into().ok()?,
+            )
         }
     }
 }

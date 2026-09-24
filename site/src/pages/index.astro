@@ -38,8 +38,8 @@ typstgen compile letter.typ
     <Badges>
       <Badge>MIT</Badge>
       <Badge>crates.io 0.1.0</Badge>
-      <Badge>Rust 1.89+</Badge>
-      <Badge>Typst 0.13</Badge>
+      <Badge>Rust 1.92+</Badge>
+      <Badge>Typst 0.15</Badge>
     </Badges>
     <Terminal slot="output" title="typstgen compile --help" dots ansi={compileHelp} />
   </Hero>
@@ -57,11 +57,11 @@ typstgen compile letter.typ
     items={[
       {
         title: 'Typst as a library',
-        body: 'typst and typst-pdf 0.13 are compiled into typstgen. The CLI writes the PDF; the library returns its bytes.',
+        body: 'typst and typst-pdf 0.15 are compiled into typstgen. The CLI writes the PDF; the library returns its bytes.',
       },
       {
         title: 'Template paths from config',
-        body: 'typstgen.toml lists template directories in order of preference. Imports resolve against the first one that exists, next to the document’s own folder.',
+        body: 'typstgen.toml lists template directories. Each import is looked up next to the document first, then in every template directory in order. None of them is required.',
       },
       {
         title: 'Fonts you can rely on',
