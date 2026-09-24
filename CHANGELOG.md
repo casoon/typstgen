@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-09-24
+
 ### Breaking
 
 - `Config::resolve_template_path` and `Error::TemplatePathNotFound` are removed; use
