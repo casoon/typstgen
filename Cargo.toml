@@ -1,6 +1,6 @@
 [package]
 name = "typstgen"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 authors = ["Casoon <info@casoon.de>"]
 description = "Compile existing .typ files to PDF with an embedded Typst engine — no external typst binary, config-driven template resolution. Usable as CLI, Rust lib, and Wasm."
