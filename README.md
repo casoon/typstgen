@@ -33,6 +33,8 @@ feature-gated CLI/Wasm, embedded fonts only on Wasm.
 ```bash
 cargo install typstgen
 typstgen compile letter.typ          # writes letter.pdf next to it
+typstgen compile invoice.typ --input customer=ACME --pdf-standard a-2b \
+  --creation-timestamp "$(date +%s)"  # sys.inputs, PDF/A, fixed date
 ```
 
 Imports are looked up next to the document, then in the template directories

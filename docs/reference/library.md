@@ -24,10 +24,26 @@ std::fs::write("example.pdf", pdf_bytes)?;
 | --- | --- |
 | `compile(input: &Path, config: &Config) -> Result<Vec<u8>>` | Compiles a `.typ` file and returns the PDF bytes. Warnings are discarded. |
 | `compile_with_warnings(input: &Path, config: &Config) -> Result<Output>` | Same, but returns an `Output` with `pdf` and the formatted `warnings`. |
+| `compile_with_options(input: &Path, config: &Config, options: &CompileOptions) -> Result<Output>` | Same, with `sys.inputs` and PDF settings. |
+| `CompileOptions` | `inputs`, `pdf_standards`, `creation_timestamp`, `pages`, `pdf_tags`; see [Inputs and PDF options](../../guides/inputs-and-pdf/). `Default` exports a plain, tagged PDF. |
+| `PdfStandard` | PDF version, PDF/A or PDF/UA-1. Parses from and displays as `1.7`, `a-2b`, `ua-1` …; `PdfStandard::ALL` lists them. |
+| `PageRange` | Inclusive 1-based range with optional ends. Parses from `5`, `1-3`, `-3`, `8-`. |
 | `Config` | `template_paths`, `font_paths`, `use_system_fonts`; see [typstgen.toml](../configuration/). Implements `Default`, `Serialize` and `Deserialize`. |
 | `Config::load(Option<&Path>)` | Reads the given file, else `./typstgen.toml`, else the defaults. |
 | `Config::template_roots()` | The configured template directories that exist, canonicalized, in order. |
 | `Error`, `Result` | Error type and alias used by all of the above. |
+
+```rust
+use typstgen::{compile_with_options, CompileOptions, PdfStandard};
+
+let options = CompileOptions {
+    inputs: [("customer".to_owned(), "ACME".to_owned())].into(),
+    pdf_standards: vec![PdfStandard::A2b],
+    creation_timestamp: Some(1_767_225_600), // 2026-01-01T00:00:00Z
+    ..Default::default()
+};
+let output = compile_with_options("invoice.typ".as_ref(), &config, &options)?;
+```
 
 `Config` can also be built in code, which is what the test suite does:
 
@@ -72,8 +88,11 @@ const pdf = compile(JSON.stringify({
 ```
 
 - `source` is the main document, `files` maps virtual paths to their contents.
+- Optional: `inputs` (object of strings for `sys.inputs`), `pdf_standards` (for example
+  `["a-2b"]`), `creation_timestamp` (Unix seconds), `pages` (for example `"1-3,5"`) and
+  `pdf_tags` (boolean, default `true`), as in [Inputs and PDF options](../../guides/inputs-and-pdf/).
 - File contents are strings, so only text files (Typst sources, CSV, JSON …) can be passed.
 - The result is the PDF as a `Uint8Array`. Invalid JSON, an invalid path or a Typst error throws
   with the message.
-- Only the [bundled fonts](../../guides/fonts/) are available, and `datetime.today()` has no
-  date to return.
+- Only the [bundled fonts](../../guides/fonts/) are available. `datetime.today()` only has a date
+  when `creation_timestamp` is set.

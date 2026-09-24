@@ -18,6 +18,7 @@
 //!
 pub mod config;
 pub mod error;
+pub mod options;
 mod world;
 
 #[cfg(feature = "wasm")]
@@ -25,6 +26,7 @@ pub mod wasm;
 
 pub use config::Config;
 pub use error::{Error, Result};
+pub use options::{CompileOptions, PageRange, PdfStandard};
 
 use std::path::Path;
 
@@ -64,14 +66,31 @@ pub struct Output {
 /// See [`compile`]. The message of [`Error::Compile`] lists all errors and
 /// warnings with file, line and column.
 pub fn compile_with_warnings(input: &Path, config: &Config) -> Result<Output> {
+    compile_with_options(input, config, &CompileOptions::default())
+}
+
+/// Like [`compile_with_warnings`], with `sys.inputs` and PDF export settings
+/// from [`CompileOptions`].
+///
+/// # Errors
+///
+/// See [`compile`]. An incompatible combination of
+/// [`CompileOptions::pdf_standards`], or a document that violates a
+/// requested standard, is reported as [`Error::Compile`].
+pub fn compile_with_options(
+    input: &Path,
+    config: &Config,
+    options: &CompileOptions,
+) -> Result<Output> {
     if !input.exists() {
         return Err(Error::InputNotFound(input.to_path_buf()));
     }
-    let world = world::TypstWorld::from_file(input, config)?;
-    compile_world(&world)
+    let world = world::TypstWorld::from_file(input, config, options)?;
+    compile_world(&world, options)
 }
 
-fn compile_world(world: &world::TypstWorld) -> Result<Output> {
+fn compile_world(world: &world::TypstWorld, options: &CompileOptions) -> Result<Output> {
+    let pdf_options = pdf_options(options)?;
     let warned = typst::compile(world);
     let warnings: Vec<String> = warned
         .warnings
@@ -88,8 +107,59 @@ fn compile_world(world: &world::TypstWorld) -> Result<Output> {
     };
 
     let document = warned.output.map_err(fail)?;
-    let pdf = typst_pdf::pdf(&document, &typst_pdf::PdfOptions::default()).map_err(fail)?;
+    let pdf = typst_pdf::pdf(&document, &pdf_options).map_err(fail)?;
     Ok(Output { pdf, warnings })
+}
+
+fn pdf_options(options: &CompileOptions) -> Result<typst_pdf::PdfOptions> {
+    let standards: Vec<_> = options
+        .pdf_standards
+        .iter()
+        .map(|standard| standard.to_typst())
+        .collect();
+    let standards = typst_pdf::PdfStandards::new(&standards).map_err(|error| {
+        let hints: String = error
+            .hints()
+            .iter()
+            .map(|hint| format!("\n  hint: {hint}"))
+            .collect();
+        Error::Compile(format!("error: {}{hints}", error.message()))
+    })?;
+
+    let timestamp = options
+        .creation_timestamp
+        .and_then(|seconds| chrono::DateTime::from_timestamp(seconds, 0))
+        .and_then(|time| {
+            use chrono::{Datelike, Timelike};
+            typst::foundations::Datetime::from_ymd_hms(
+                time.year(),
+                time.month().try_into().ok()?,
+                time.day().try_into().ok()?,
+                time.hour().try_into().ok()?,
+                time.minute().try_into().ok()?,
+                time.second().try_into().ok()?,
+            )
+        })
+        .map(typst_pdf::Timestamp::new_utc);
+
+    let page_ranges = (!options.pages.is_empty()).then(|| {
+        typst::layout::PageRanges::new(
+            options
+                .pages
+                .iter()
+                .map(|range| range.first..=range.last)
+                .collect(),
+        )
+    });
+
+    Ok(typst_pdf::PdfOptions {
+        timestamp,
+        page_ranges,
+        standards,
+        // Typst cannot tag a partial export.
+        tagged: options.pdf_tags && options.pages.is_empty(),
+        ..Default::default()
+    })
 }
 
 /// Formats a diagnostic as `path:line:column: severity: message`, followed

@@ -2,7 +2,10 @@ use std::fs;
 use std::process::Command;
 
 use tempfile::tempdir;
-use typstgen::{compile, compile_with_warnings, Config, Error};
+use typstgen::{
+    compile, compile_with_options, compile_with_warnings, CompileOptions, Config, Error, PageRange,
+    PdfStandard,
+};
 
 #[test]
 fn compiles_a_document_with_an_import_from_the_template_root() {
@@ -186,6 +189,23 @@ fn wasm_compiles_from_a_virtual_filesystem() {
     assert!(pdf.starts_with(b"%PDF-"));
 }
 
+#[cfg(feature = "wasm")]
+#[test]
+fn wasm_accepts_inputs_and_pdf_options() {
+    let request = serde_json::json!({
+        "source": "#assert.eq(sys.inputs.customer, \"ACME\")\n#assert.eq(datetime.today(), datetime(year: 2020, month: 1, day: 1))\n= Wasm",
+        "inputs": { "customer": "ACME" },
+        "pdf_standards": ["a-2b"],
+        "creation_timestamp": 1_577_836_800,
+        "pages": "1",
+        "pdf_tags": false,
+    });
+    let pdf = typstgen::wasm::compile(&request.to_string()).expect("compile with options");
+
+    assert!(contains(&pdf, b"pdfaid:part"));
+    assert!(contains(&pdf, b"D:20200101000000Z"));
+}
+
 #[test]
 fn errors_name_file_line_and_column() {
     let temp = tempdir().expect("create temporary project");
@@ -217,4 +237,187 @@ fn warnings_are_returned() {
         "{:?}",
         output.warnings
     );
+}
+
+fn contains(haystack: &[u8], needle: &[u8]) -> bool {
+    haystack
+        .windows(needle.len())
+        .any(|window| window == needle)
+}
+
+fn three_pages(temp: &std::path::Path) -> std::path::PathBuf {
+    let input = temp.join("document.typ");
+    fs::write(
+        &input,
+        "#set text(lang: \"en\")\nA\n#pagebreak()\nB\n#pagebreak()\nC",
+    )
+    .expect("write input");
+    input
+}
+
+#[test]
+fn inputs_are_visible_as_sys_inputs() {
+    let temp = tempdir().expect("create temporary project");
+    let input = temp.path().join("document.typ");
+    fs::write(
+        &input,
+        "#assert.eq(sys.inputs, (customer: \"ACME\", number: \"42\"))\n= Invoice",
+    )
+    .expect("write input");
+
+    let options = CompileOptions {
+        inputs: [("customer", "ACME"), ("number", "42")]
+            .map(|(key, value)| (key.to_owned(), value.to_owned()))
+            .into(),
+        ..Default::default()
+    };
+    compile_with_options(&input, &config_with(vec![]), &options)
+        .expect("sys.inputs assertion holds");
+}
+
+#[test]
+fn creation_timestamp_sets_metadata_and_today() {
+    let temp = tempdir().expect("create temporary project");
+    let input = temp.path().join("document.typ");
+    fs::write(
+        &input,
+        "#assert.eq(datetime.today(), datetime(year: 2020, month: 1, day: 1))\n= Fixed date",
+    )
+    .expect("write input");
+
+    let options = CompileOptions {
+        creation_timestamp: Some(1_577_836_800), // 2020-01-01T00:00:00Z
+        ..Default::default()
+    };
+    let output = compile_with_options(&input, &config_with(vec![]), &options).expect("compile");
+
+    assert!(contains(&output.pdf, b"D:20200101000000Z"));
+    let again = compile_with_options(&input, &config_with(vec![]), &options).expect("compile");
+    assert_eq!(
+        output.pdf, again.pdf,
+        "fixed timestamp gives identical PDFs"
+    );
+}
+
+#[test]
+fn pdf_standard_is_written_and_enforced() {
+    let temp = tempdir().expect("create temporary project");
+    let input = three_pages(temp.path());
+    let config = config_with(vec![]);
+
+    let without_date = CompileOptions {
+        pdf_standards: vec![PdfStandard::A2b],
+        ..Default::default()
+    };
+    let Err(Error::Compile(message)) = compile_with_options(&input, &config, &without_date) else {
+        panic!("expected PDF/A without a date to fail");
+    };
+    assert!(message.contains("missing document date"), "{message}");
+
+    let options = CompileOptions {
+        creation_timestamp: Some(1_577_836_800),
+        ..without_date
+    };
+    let output = compile_with_options(&input, &config, &options).expect("compile PDF/A-2b");
+    assert!(contains(&output.pdf, b"pdfaid:part"));
+
+    let conflicting = CompileOptions {
+        pdf_standards: vec![PdfStandard::A2b, PdfStandard::A3b],
+        ..Default::default()
+    };
+    let Err(Error::Compile(message)) = compile_with_options(&input, &config, &conflicting) else {
+        panic!("expected conflicting standards to fail");
+    };
+    assert!(message.contains("at most one PDF/A standard"), "{message}");
+}
+
+#[test]
+fn pages_limit_the_export_and_tags_can_be_turned_off() {
+    let temp = tempdir().expect("create temporary project");
+    let input = three_pages(temp.path());
+    let config = config_with(vec![]);
+
+    let tagged =
+        compile_with_options(&input, &config, &CompileOptions::default()).expect("compile");
+    assert!(contains(&tagged.pdf, b"/Count 3"));
+    assert!(contains(&tagged.pdf, b"StructTreeRoot"));
+
+    let options = CompileOptions {
+        pages: vec!["1".parse().unwrap(), "3-".parse().unwrap()],
+        ..Default::default()
+    };
+    let partial = compile_with_options(&input, &config, &options).expect("compile pages 1 and 3");
+    assert!(contains(&partial.pdf, b"/Count 2"));
+    assert!(!contains(&partial.pdf, b"StructTreeRoot"));
+
+    let untagged = CompileOptions {
+        pdf_tags: false,
+        ..Default::default()
+    };
+    let output = compile_with_options(&input, &config, &untagged).expect("compile untagged");
+    assert!(!contains(&output.pdf, b"StructTreeRoot"));
+}
+
+#[test]
+fn parses_pdf_standards_and_page_ranges() {
+    assert_eq!("a-2b".parse::<PdfStandard>(), Ok(PdfStandard::A2b));
+    assert_eq!(PdfStandard::Ua1.to_string(), "ua-1");
+    assert!("a-9".parse::<PdfStandard>().is_err());
+
+    let page = |n| std::num::NonZeroUsize::new(n);
+    let range = |first, last| PageRange { first, last };
+    assert_eq!("5".parse(), Ok(range(page(5), page(5))));
+    assert_eq!("1-3".parse(), Ok(range(page(1), page(3))));
+    assert_eq!("-3".parse(), Ok(range(None, page(3))));
+    assert_eq!("5-".parse(), Ok(range(page(5), None)));
+    for invalid in ["", "0", "3-1", "x", "1-y"] {
+        assert!(invalid.parse::<PageRange>().is_err(), "{invalid:?}");
+    }
+}
+
+#[test]
+fn cli_passes_inputs_and_pdf_options() {
+    let temp = tempdir().expect("create temporary project");
+    let input = temp.path().join("document.typ");
+    fs::write(
+        &input,
+        "#assert.eq(sys.inputs.customer, \"ACME\")\n\
+         #assert.eq(datetime.today(), datetime(year: 2020, month: 1, day: 1))\n\
+         #set text(lang: \"en\")\nA\n#pagebreak()\nB",
+    )
+    .expect("write input");
+
+    let output = temp.path().join("document.pdf");
+    let status = Command::new(env!("CARGO_BIN_EXE_typstgen"))
+        .current_dir(temp.path())
+        .env_remove("SOURCE_DATE_EPOCH")
+        .args(["compile", "document.typ", "--input", "customer=ACME"])
+        .args(["--pdf-standard", "a-2b", "--pages", "-1"])
+        .args(["--creation-timestamp", "1577836800"])
+        .status()
+        .expect("run typstgen CLI");
+
+    assert!(status.success());
+    let pdf = fs::read(output).expect("read generated PDF");
+    assert!(contains(&pdf, b"pdfaid:part"));
+    assert!(contains(&pdf, b"/Count 1"));
+}
+
+#[test]
+fn cli_reads_source_date_epoch() {
+    let temp = tempdir().expect("create temporary project");
+    let input = temp.path().join("document.typ");
+    fs::write(
+        &input,
+        "#assert.eq(datetime.today(), datetime(year: 2020, month: 1, day: 1))\n= Epoch",
+    )
+    .expect("write input");
+
+    let status = Command::new(env!("CARGO_BIN_EXE_typstgen"))
+        .current_dir(temp.path())
+        .env("SOURCE_DATE_EPOCH", "1577836800")
+        .args(["compile", "document.typ"])
+        .status()
+        .expect("run typstgen CLI");
+    assert!(status.success());
 }
