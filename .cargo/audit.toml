@@ -6,6 +6,10 @@ ignore = [
     # 0.7.0 still requires quick-xml 0.38). Both are denial-of-service issues
     # when parsing crafted XML (CSL styles/locales). typstgen compiles trusted
     # documents; do not expose it to untrusted .typ/.csl input until fixed.
+    # The fix (quick-xml 0.41) is on citationberg main but unreleased: it is a
+    # semver break, and Typst's maintainers recommend suppressing the advisory
+    # for users that only depend on it through Typst:
+    # https://github.com/typst/citationberg/issues/49
     "RUSTSEC-2026-0194",
     "RUSTSEC-2026-0195",
 ]
