@@ -253,6 +253,21 @@ impl TypstWorld {
         cell(slot).get_or_init(|| result.clone()).clone()
     }
 
+    /// The path shown in diagnostics: the real file, relative to the working
+    /// directory where possible, otherwise the virtual path.
+    pub(crate) fn display_path(&self, id: FileId) -> String {
+        let Some(path) = self.path_for(id) else {
+            return id.vpath().get_without_slash().to_owned();
+        };
+        std::env::current_dir()
+            .ok()
+            .and_then(|cwd| cwd.canonicalize().ok())
+            .and_then(|cwd| path.strip_prefix(cwd).ok().map(Path::to_path_buf))
+            .unwrap_or(path)
+            .display()
+            .to_string()
+    }
+
     fn path_for(&self, id: FileId) -> Option<PathBuf> {
         if *id.root() != VirtualRoot::Project {
             return None;

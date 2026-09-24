@@ -2,7 +2,7 @@ use std::fs;
 use std::process::Command;
 
 use tempfile::tempdir;
-use typstgen::{compile, Config};
+use typstgen::{compile, compile_with_warnings, Config, Error};
 
 #[test]
 fn compiles_a_document_with_an_import_from_the_template_root() {
@@ -184,4 +184,37 @@ fn wasm_compiles_from_a_virtual_filesystem() {
     let pdf = typstgen::wasm::compile(&request.to_string()).expect("compile virtual files");
 
     assert!(pdf.starts_with(b"%PDF-"));
+}
+
+#[test]
+fn errors_name_file_line_and_column() {
+    let temp = tempdir().expect("create temporary project");
+    let input = temp.path().join("document.typ");
+    fs::write(&input, "= Title\n#missing").expect("write input");
+
+    let Err(Error::Compile(message)) = compile(&input, &config_with(vec![])) else {
+        panic!("expected a compile error");
+    };
+    assert!(
+        message.contains("document.typ:2:2: error: unknown variable: missing"),
+        "{message}"
+    );
+}
+
+#[test]
+fn warnings_are_returned() {
+    let temp = tempdir().expect("create temporary project");
+    let input = temp.path().join("document.typ");
+    fs::write(&input, "#set text(font: \"No Such Font\")\nHello").expect("write input");
+
+    let output = compile_with_warnings(&input, &config_with(vec![])).expect("compile");
+    assert!(output.pdf.starts_with(b"%PDF-"));
+    assert!(
+        output
+            .warnings
+            .iter()
+            .any(|warning| warning.contains("document.typ:1:") && warning.contains("warning:")),
+        "{:?}",
+        output.warnings
+    );
 }

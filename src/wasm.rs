@@ -34,5 +34,7 @@ pub fn compile(request_json: &str) -> Result<Vec<u8>, JsValue> {
     )
     .map_err(|error| JsValue::from_str(&error))?;
 
-    compile_world(&world).map_err(|error| JsValue::from_str(&error.to_string()))
+    compile_world(&world)
+        .map(|output| output.pdf)
+        .map_err(|error| JsValue::from_str(&error.to_string()))
 }
