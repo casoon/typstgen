@@ -14,6 +14,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::{Error, Result};
 
+/// Settings from `typstgen.toml`. Missing keys keep their [`Default`] value.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Config {

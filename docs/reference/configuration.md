@@ -14,7 +14,7 @@ order: 2
 
 | Key | Type | Default | Meaning |
 | --- | --- | --- | --- |
-| `template_paths` | array of paths | `["./templates", "./.typstgen/templates"]` | Template directories in order of preference. The first one that exists is used for imports. |
+| `template_paths` | array of paths | `["./templates", "./.typstgen/templates"]` | Directories searched for imports, in order, after the input's own folder. Missing entries and files are skipped; none has to exist. |
 | `font_paths` | array of paths | `[]` | Extra font directories or font files. Native builds only. |
 | `use_system_fonts` | boolean | `true` | Add the fonts installed on the machine. Native builds only. |
 

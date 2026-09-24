@@ -51,6 +51,6 @@ use_system_fonts = false
 Without `--output`, the PDF gets the input's name with a `.pdf` extension, in the same folder.
 `./typstgen.toml` is picked up automatically; use `--config` for a file elsewhere.
 
-Paths in `typstgen.toml` are relative to the working directory, and at least one template path must
-exist, even for documents without imports. The [templates guide](../../guides/templates/) explains
+Paths in `typstgen.toml` are relative to the working directory. Template directories are optional:
+a document without imports compiles without any. The [templates guide](../../guides/templates/) explains
 the lookup in detail.

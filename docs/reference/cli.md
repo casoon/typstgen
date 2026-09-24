@@ -48,16 +48,17 @@ Options:
 
 | Result | stdout | stderr | Exit code |
 | --- | --- | --- | --- |
-| PDF written | Path of the PDF | – | `0` |
+| PDF written | Path of the PDF | Typst warnings, if any | `0` |
 | Any error | – | `error: …` | `1` |
 
-Errors include a missing input file, a missing or invalid config file, no existing template path,
-a Typst compile error, and a PDF that cannot be written. Typst errors are printed with their hints:
+Errors include a missing input file, a missing or invalid config file, a Typst compile error, and
+a PDF that cannot be written. Typst errors are printed with file, line and column, followed by their
+hints and any warnings:
 
 ```text
 error: typst compilation failed:
-file not found (searched at /footer.typ)
+missing-import.typ:2:9: error: file not found (searched at /footer.typ)
 ```
 
 This exact output is the `missing-import` example in the [showcase](../../../showcase/missing-import/).
-Typst warnings are not printed.
+On success, warnings go to stderr in the same `path:line:column: warning: …` form.

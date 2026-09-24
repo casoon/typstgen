@@ -22,7 +22,7 @@ One crate, three entry points:
 | Compile one `.typ` file to one PDF | Watch files or compile folders in bulk |
 | Resolve imports against configured template directories | Download Typst packages (`@preview/…`) |
 | Bundle Typst's fallback fonts, optionally add system and custom fonts | Manage clients, numbering or data (that was `docgen`) |
-| Report Typst errors with their hints | Print Typst warnings |
+| Report Typst errors and warnings with file, line and column | Set `sys.inputs` or PDF options (standard, identifier) |
 
 ## How the docs are organised
 

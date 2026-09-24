@@ -24,23 +24,25 @@ along the way and only ever hardcoded its template lookup paths. typstgen is
 the minimal version of the same idea: one job (`.typ` in, PDF out), with the
 template directory resolved from config instead of baked in.
 
-See [docs/PLAN.md](docs/PLAN.md) for the full rationale, lessons carried over
-from `docgen`, and the architecture reused from
-[`renderreport`](https://github.com/casoon/renderreport) (embedded Typst,
-feature-gated CLI/Wasm, embedded-fonts-only on Wasm).
+The architecture follows
+[`renderreport`](https://github.com/casoon/renderreport): embedded Typst,
+feature-gated CLI/Wasm, embedded fonts only on Wasm.
 
 ## Quick start
 
 ```bash
 cargo install typstgen
-typstgen compile documents/concepts/2026/example.typ
+typstgen compile letter.typ          # writes letter.pdf next to it
 ```
 
+Imports are looked up next to the document, then in the template directories
+from `typstgen.toml` (optional; without a config, `./templates` and
+`./.typstgen/templates` are used if they exist):
+
 ```toml
-# typstgen.toml
-# Each path is a virtual filesystem root for absolute imports. They are
-# searched in order; the first existing path is used.
-template_paths = [".", "./templates"]
+# typstgen.toml — paths are relative to the working directory.
+# Every existing directory is searched per import, in order.
+template_paths = ["templates"]
 ```
 
 ```rust
@@ -54,10 +56,14 @@ std::fs::write("example.pdf", pdf_bytes)?;
 ## Wasm
 
 Build with `cargo build --target wasm32-unknown-unknown --no-default-features --features wasm`.
-Pass source and importable text files as JSON; the returned bytes are a PDF:
+Generate JS bindings with `wasm-bindgen`, then pass the source and importable
+text files as JSON; the returned bytes are a PDF:
 
 ```js
-compile(JSON.stringify({
+import init, { compile } from './pkg/typstgen.js';
+
+await init();
+const pdf = compile(JSON.stringify({
   source: '#import "templates/shared.typ": title\n#title',
   files: { 'templates/shared.typ': '#let title = [Hello]' },
 }))

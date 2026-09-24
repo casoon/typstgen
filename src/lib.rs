@@ -11,7 +11,7 @@
 //! use typstgen::{compile, Config};
 //!
 //! let config = Config::load(None)?;
-//! let pdf_bytes = compile("documents/concepts/2026/example.typ".as_ref(), &config)?;
+//! let pdf_bytes = compile("example.typ".as_ref(), &config)?;
 //! std::fs::write("example.pdf", pdf_bytes)?;
 //! # Ok::<(), typstgen::Error>(())
 //! ```
