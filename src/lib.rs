@@ -62,7 +62,7 @@ fn format_diagnostics(errors: &[typst::diag::SourceDiagnostic]) -> String {
             let hints = error
                 .hints
                 .iter()
-                .map(|hint| format!("\n  hint: {hint}"))
+                .map(|hint| format!("\n  hint: {}", hint.v))
                 .collect::<String>();
             format!("{}{}", error.message, hints)
         })

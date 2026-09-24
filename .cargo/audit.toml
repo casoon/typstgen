@@ -1,0 +1,11 @@
+# Advisories accepted on purpose. Revisit whenever typst, hayagriva or
+# citationberg is updated; remove an entry as soon as a fixed version exists.
+[advisories]
+ignore = [
+    # quick-xml 0.38 via typst-library -> hayagriva -> citationberg (latest
+    # 0.7.0 still requires quick-xml 0.38). Both are denial-of-service issues
+    # when parsing crafted XML (CSL styles/locales). typstgen compiles trusted
+    # documents; do not expose it to untrusted .typ/.csl input until fixed.
+    "RUSTSEC-2026-0194",
+    "RUSTSEC-2026-0195",
+]

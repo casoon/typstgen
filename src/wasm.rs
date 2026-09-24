@@ -30,8 +30,9 @@ pub fn compile(request_json: &str) -> Result<Vec<u8>, JsValue> {
         request
             .files
             .into_iter()
-            .map(|(path, contents)| (path.into(), contents.into_bytes())),
-    );
+            .map(|(path, contents)| (path, contents.into_bytes())),
+    )
+    .map_err(|error| JsValue::from_str(&error))?;
 
     compile_world(&world).map_err(|error| JsValue::from_str(&error.to_string()))
 }

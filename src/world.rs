@@ -5,10 +5,10 @@ use std::path::{Path, PathBuf};
 use std::sync::{OnceLock, RwLock};
 
 use typst::diag::{FileError, FileResult};
-use typst::foundations::{Bytes, Datetime};
-use typst::syntax::{FileId, Source, VirtualPath};
+use typst::foundations::{Bytes, Datetime, Duration};
+use typst::syntax::{FileId, RootedPath, Source, VirtualPath, VirtualRoot};
 use typst::text::{Font, FontBook};
-use typst::{Library, World};
+use typst::{Library, LibraryExt, World};
 
 use crate::{Config, Result};
 
@@ -123,6 +123,11 @@ impl FontCache {
     }
 }
 
+/// The id of a file in the project (not in a package).
+fn project_file(path: VirtualPath) -> FileId {
+    RootedPath::new(VirtualRoot::Project, path).intern()
+}
+
 /// Lazy cache entry for a file in the virtual filesystem.
 struct FileSlot {
     source: OnceLock<FileResult<Source>>,
@@ -165,15 +170,15 @@ impl TypstWorld {
             .find(|root| input.starts_with(root))
             .cloned()
             .unwrap_or_else(|| input.parent().unwrap_or(Path::new("/")).to_path_buf());
-        let main_path = VirtualPath::within_root(&input, &project_root)
-            .expect("input lies within its project root");
+        let main_path = VirtualPath::virtualize(&project_root, &input)
+            .map_err(|error| std::io::Error::other(format!("{}: {error}", input.display())))?;
 
         let mut roots = template_roots;
         roots.retain(|root| *root != project_root);
         roots.insert(0, project_root);
 
         Ok(Self::new(
-            FileId::new(None, main_path),
+            project_file(main_path),
             source,
             roots,
             Some(config),
@@ -185,20 +190,18 @@ impl TypstWorld {
     #[cfg(feature = "wasm")]
     pub(crate) fn from_virtual(
         source: String,
-        files: impl IntoIterator<Item = (PathBuf, Vec<u8>)>,
-    ) -> Self {
-        let world = Self::new(
-            FileId::new(None, VirtualPath::new("main.typ")),
-            source,
-            vec![],
-            None,
-        );
+        files: impl IntoIterator<Item = (String, Vec<u8>)>,
+    ) -> std::result::Result<Self, String> {
+        let main = VirtualPath::new("main.typ").expect("valid virtual path");
+        let world = Self::new(project_file(main), source, vec![], None);
 
         for (path, contents) in files {
-            world.add_file(path, contents);
+            let vpath = VirtualPath::new(&path)
+                .map_err(|error| format!("invalid path {path:?}: {error}"))?;
+            world.add_file(vpath, contents);
         }
 
-        world
+        Ok(world)
     }
 
     fn new(main_id: FileId, source: String, roots: Vec<PathBuf>, config: Option<&Config>) -> Self {
@@ -214,8 +217,8 @@ impl TypstWorld {
     }
 
     #[cfg(feature = "wasm")]
-    fn add_file(&self, path: PathBuf, contents: Vec<u8>) {
-        let id = FileId::new(None, VirtualPath::new(path));
+    fn add_file(&self, path: VirtualPath, contents: Vec<u8>) {
+        let id = project_file(path);
         let mut files = self
             .files
             .write()
@@ -239,7 +242,7 @@ impl TypstWorld {
 
         let result = self
             .path_for(id)
-            .ok_or_else(|| FileError::NotFound(id.vpath().as_rooted_path().to_path_buf()))
+            .ok_or_else(|| FileError::NotFound(id.vpath().get_with_slash().into()))
             .and_then(|path| load(&path));
 
         let mut files = self
@@ -251,13 +254,13 @@ impl TypstWorld {
     }
 
     fn path_for(&self, id: FileId) -> Option<PathBuf> {
-        if id.package().is_some() {
+        if *id.root() != VirtualRoot::Project {
             return None;
         }
 
         self.roots
             .iter()
-            .filter_map(|root| id.vpath().resolve(root))
+            .filter_map(|root| id.vpath().realize(root).ok())
             .find(|path| path.is_file())
     }
 }
@@ -316,7 +319,7 @@ impl World for TypstWorld {
         self.fonts.fonts.get(index)?.get()
     }
 
-    fn today(&self, offset: Option<i64>) -> Option<Datetime> {
+    fn today(&self, offset: Option<Duration>) -> Option<Datetime> {
         #[cfg(target_arch = "wasm32")]
         {
             let _ = offset;
@@ -331,7 +334,9 @@ impl World for TypstWorld {
             let now = *self.now.get_or_init(chrono::Utc::now);
             let date = match offset {
                 None => now.with_timezone(&chrono::Local).date_naive(),
-                Some(hours) => (now + chrono::Duration::try_hours(hours)?).date_naive(),
+                Some(offset) => {
+                    (now + chrono::Duration::try_seconds(offset.seconds() as i64)?).date_naive()
+                }
             };
             Datetime::from_ymd(
                 date.year(),
