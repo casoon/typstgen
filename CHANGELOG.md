@@ -6,6 +6,16 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- `compile_with_options` and `CompileOptions`: values for `sys.inputs`, PDF standards (PDF
+  version, PDF/A, PDF/UA-1), a fixed creation timestamp (also used by `datetime.today()`), page
+  ranges and untagged output. `PdfStandard` and `PageRange` parse the names the `typst` CLI uses.
+- CLI flags `--input KEY=VALUE`, `--pdf-standard`, `--creation-timestamp` (falls back to
+  `SOURCE_DATE_EPOCH`), `--pages` and `--no-pdf-tags`.
+- The Wasm request accepts `inputs`, `pdf_standards`, `creation_timestamp`, `pages` and
+  `pdf_tags`.
+
 ## [0.2.0] - 2026-09-24
 
 ### Breaking

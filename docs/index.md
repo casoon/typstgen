@@ -22,14 +22,15 @@ One crate, three entry points:
 | Compile one `.typ` file to one PDF | Watch files or compile folders in bulk |
 | Resolve imports against configured template directories | Download Typst packages (`@preview/…`) |
 | Bundle Typst's fallback fonts, optionally add system and custom fonts | Manage clients, numbering or data (that was `docgen`) |
-| Report Typst errors and warnings with file, line and column | Set `sys.inputs` or PDF options (standard, identifier) |
+| Report Typst errors and warnings with file, line and column | Export PNG, SVG or HTML |
+| Pass `sys.inputs`, enforce PDF/A or PDF/UA, export page ranges | Set the PDF identifier or `/Creator` |
 
 ## How the docs are organised
 
 - **Getting started**: [install](getting-started/installation/) the CLI or the crate and compile a
   [first document](getting-started/quickstart/).
-- **Guides**: how [templates and imports](guides/templates/) are resolved and which
-  [fonts](guides/fonts/) are available.
+- **Guides**: how [templates and imports](guides/templates/) are resolved, which
+  [fonts](guides/fonts/) are available, and how to pass [inputs and PDF options](guides/inputs-and-pdf/).
 - **Reference**: [CLI options](reference/cli/), [`typstgen.toml`](reference/configuration/) and the
   [Rust and Wasm API](reference/library/). Item-level documentation lives on
   [docs.rs](https://docs.rs/typstgen).

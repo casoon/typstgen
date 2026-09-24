@@ -33,9 +33,22 @@ Arguments:
   <INPUT>  Path to the .typ file
 
 Options:
-  -o, --output <OUTPUT>  Output PDF path (defaults to input with .pdf extension)
-  -c, --config <CONFIG>  Path to typstgen.toml (defaults to ./typstgen.toml if present)
-  -h, --help             Print help
+  -o, --output <OUTPUT>
+          Output PDF path (defaults to input with .pdf extension)
+  -c, --config <CONFIG>
+          Path to typstgen.toml (defaults to ./typstgen.toml if present)
+      --input <KEY=VALUE>
+          Add a string key-value pair visible through `sys.inputs`
+      --pdf-standard <STANDARD>
+          PDF standards to enforce, comma-separated (e.g. a-2b, ua-1, 1.7)
+      --creation-timestamp <UNIX_SECONDS>
+          Creation date as a Unix timestamp; also used by datetime.today() [env: SOURCE_DATE_EPOCH=]
+      --pages <PAGES>
+          Pages to export, comma-separated (e.g. 1-3,5,8-); implies an untagged PDF
+      --no-pdf-tags
+          Write an untagged PDF (smaller, but without document structure)
+  -h, --help
+          Print help
 ```
 
 | Option | Behaviour |
@@ -43,6 +56,13 @@ Options:
 | `<INPUT>` | The `.typ` file to compile. Must exist. |
 | `-o`, `--output` | Where to write the PDF. The folder must already exist; typstgen does not create it. |
 | `-c`, `--config` | Config file to use. Without it, `./typstgen.toml` is used if present, otherwise the [defaults](../configuration/). |
+| `--input KEY=VALUE` | A string for `sys.inputs`. Repeatable. |
+| `--pdf-standard` | PDF version, PDF/A or PDF/UA-1 to enforce, comma-separated. PDF/A needs a creation date. |
+| `--creation-timestamp` | Unix seconds for the PDF creation date and `datetime.today()`. Falls back to `SOURCE_DATE_EPOCH`. |
+| `--pages` | Pages to export, for example `1-3,5,8-`. Produces an untagged PDF. |
+| `--no-pdf-tags` | Write an untagged PDF. |
+
+The last five options are explained in [Inputs and PDF options](../../guides/inputs-and-pdf/).
 
 ## Output and exit codes
 

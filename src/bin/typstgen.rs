@@ -2,7 +2,7 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 use clap::{Parser, Subcommand};
-use typstgen::Config;
+use typstgen::{CompileOptions, Config, PageRange, PdfStandard};
 
 #[derive(Parser)]
 #[command(name = "typstgen")]
@@ -25,6 +25,26 @@ enum Commands {
         /// Path to typstgen.toml (defaults to ./typstgen.toml if present)
         #[arg(short, long)]
         config: Option<PathBuf>,
+        /// Add a string key-value pair visible through `sys.inputs`
+        #[arg(long = "input", value_name = "KEY=VALUE", value_parser = parse_input)]
+        inputs: Vec<(String, String)>,
+        /// PDF standards to enforce, comma-separated (e.g. a-2b, ua-1, 1.7)
+        #[arg(long = "pdf-standard", value_name = "STANDARD", value_delimiter = ',')]
+        pdf_standards: Vec<PdfStandard>,
+        /// Creation date as a Unix timestamp; also used by datetime.today()
+        #[arg(long, value_name = "UNIX_SECONDS", env = "SOURCE_DATE_EPOCH")]
+        creation_timestamp: Option<i64>,
+        /// Pages to export, comma-separated (e.g. 1-3,5,8-); implies an untagged PDF
+        #[arg(
+            long,
+            value_name = "PAGES",
+            value_delimiter = ',',
+            allow_hyphen_values = true
+        )]
+        pages: Vec<PageRange>,
+        /// Write an untagged PDF (smaller, but without document structure)
+        #[arg(long)]
+        no_pdf_tags: bool,
     },
 }
 
@@ -36,7 +56,19 @@ fn main() -> ExitCode {
             input,
             output,
             config,
+            inputs,
+            pdf_standards,
+            creation_timestamp,
+            pages,
+            no_pdf_tags,
         } => {
+            let options = CompileOptions {
+                inputs: inputs.into_iter().collect(),
+                pdf_standards,
+                creation_timestamp,
+                pages,
+                pdf_tags: !no_pdf_tags,
+            };
             let config = match Config::load(config.as_deref()) {
                 Ok(config) => config,
                 Err(err) => {
@@ -45,7 +77,7 @@ fn main() -> ExitCode {
                 }
             };
 
-            match typstgen::compile_with_warnings(&input, &config) {
+            match typstgen::compile_with_options(&input, &config, &options) {
                 Ok(compiled) => {
                     for warning in &compiled.warnings {
                         eprintln!("{warning}");
@@ -64,5 +96,12 @@ fn main() -> ExitCode {
                 }
             }
         }
+    }
+}
+
+fn parse_input(raw: &str) -> Result<(String, String), String> {
+    match raw.split_once('=') {
+        Some((key, value)) if !key.is_empty() => Ok((key.to_owned(), value.to_owned())),
+        _ => Err(format!("expected KEY=VALUE, got {raw:?}")),
     }
 }

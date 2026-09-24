@@ -41,8 +41,11 @@ toml = "1"
 # Error handling
 thiserror = "2.0"
 
+# Dates for `datetime.today()` and the PDF creation timestamp.
+chrono = { version = "0.4", default-features = false, features = ["std"] }
+
 # CLI (optional)
-clap = { version = "4.5", features = ["derive"], optional = true }
+clap = { version = "4.5", features = ["derive", "env"], optional = true }
 
 # Wasm bindings (optional)
 wasm-bindgen = { version = "0.2", optional = true }
@@ -51,8 +54,8 @@ wasm-bindgen = { version = "0.2", optional = true }
 # embedded fonts from typst-assets).
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 fontdb = "0.24"
-# Date support for Typst's `datetime.today()`.
-chrono = "0.4"
+# System clock for `datetime.today()`.
+chrono = { version = "0.4", features = ["clock"] }
 
 [features]
 default = ["cli"]

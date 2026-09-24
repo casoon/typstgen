@@ -5,12 +5,12 @@ use std::path::{Path, PathBuf};
 use std::sync::{OnceLock, RwLock};
 
 use typst::diag::{FileError, FileResult};
-use typst::foundations::{Bytes, Datetime, Duration};
+use typst::foundations::{Bytes, Datetime, Duration, IntoValue};
 use typst::syntax::{FileId, RootedPath, Source, VirtualPath, VirtualRoot};
 use typst::text::{Font, FontBook};
 use typst::{Library, LibraryExt, World};
 
-use crate::{Config, Result};
+use crate::{CompileOptions, Config, Result};
 
 /// Font metadata for Typst plus lazily loaded font data. The bundled fonts
 /// are static and loaded up front; fonts found on disk are only read into
@@ -151,6 +151,8 @@ pub(crate) struct TypstWorld {
     fonts: FontCache,
     files: RwLock<HashMap<FileId, FileSlot>>,
     roots: Vec<PathBuf>,
+    /// The creation timestamp from [`CompileOptions`], if any.
+    fixed_now: Option<chrono::DateTime<chrono::Utc>>,
     #[cfg(not(target_arch = "wasm32"))]
     now: OnceLock<chrono::DateTime<chrono::Utc>>,
 }
@@ -160,7 +162,11 @@ impl TypstWorld {
     /// template directory that contains `input`, otherwise the input's own
     /// directory. Imports are looked up in the project root first, then in
     /// every other existing template directory.
-    pub(crate) fn from_file(input: &Path, config: &Config) -> Result<Self> {
+    pub(crate) fn from_file(
+        input: &Path,
+        config: &Config,
+        options: &CompileOptions,
+    ) -> Result<Self> {
         let input = input.canonicalize()?;
         let source = std::fs::read_to_string(&input)?;
         let template_roots = config.template_roots();
@@ -182,6 +188,7 @@ impl TypstWorld {
             source,
             roots,
             Some(config),
+            options,
         ))
     }
 
@@ -191,9 +198,10 @@ impl TypstWorld {
     pub(crate) fn from_virtual(
         source: String,
         files: impl IntoIterator<Item = (String, Vec<u8>)>,
+        options: &CompileOptions,
     ) -> std::result::Result<Self, String> {
         let main = VirtualPath::new("main.typ").expect("valid virtual path");
-        let world = Self::new(project_file(main), source, vec![], None);
+        let world = Self::new(project_file(main), source, vec![], None, options);
 
         for (path, contents) in files {
             let vpath = VirtualPath::new(&path)
@@ -204,13 +212,27 @@ impl TypstWorld {
         Ok(world)
     }
 
-    fn new(main_id: FileId, source: String, roots: Vec<PathBuf>, config: Option<&Config>) -> Self {
+    fn new(
+        main_id: FileId,
+        source: String,
+        roots: Vec<PathBuf>,
+        config: Option<&Config>,
+        options: &CompileOptions,
+    ) -> Self {
+        let inputs = options
+            .inputs
+            .iter()
+            .map(|(key, value)| (key.as_str().into(), value.as_str().into_value()))
+            .collect();
         Self {
             main: Source::new(main_id, source),
-            library: typst::utils::LazyHash::new(Library::default()),
+            library: typst::utils::LazyHash::new(Library::builder().with_inputs(inputs).build()),
             fonts: FontCache::new(config),
             files: RwLock::new(HashMap::new()),
             roots,
+            fixed_now: options
+                .creation_timestamp
+                .and_then(|seconds| chrono::DateTime::from_timestamp(seconds, 0)),
             #[cfg(not(target_arch = "wasm32"))]
             now: OnceLock::new(),
         }
@@ -335,29 +357,32 @@ impl World for TypstWorld {
     }
 
     fn today(&self, offset: Option<Duration>) -> Option<Datetime> {
+        use chrono::Datelike;
+
+        // A fixed creation timestamp is interpreted as UTC so the result does
+        // not depend on the machine's time zone. The system clock is read
+        // once per compilation, so every call agrees.
+        let (now, local) = match self.fixed_now {
+            Some(now) => (now, false),
+            #[cfg(not(target_arch = "wasm32"))]
+            None => (*self.now.get_or_init(chrono::Utc::now), true),
+            #[cfg(target_arch = "wasm32")]
+            None => return None,
+        };
+        let date = match offset {
+            #[cfg(not(target_arch = "wasm32"))]
+            None if local => now.with_timezone(&chrono::Local).date_naive(),
+            None => now.date_naive(),
+            Some(offset) => {
+                (now + chrono::Duration::try_seconds(offset.seconds() as i64)?).date_naive()
+            }
+        };
         #[cfg(target_arch = "wasm32")]
-        {
-            let _ = offset;
-            None
-        }
-
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            use chrono::Datelike;
-
-            // One timestamp per compilation, so every call agrees.
-            let now = *self.now.get_or_init(chrono::Utc::now);
-            let date = match offset {
-                None => now.with_timezone(&chrono::Local).date_naive(),
-                Some(offset) => {
-                    (now + chrono::Duration::try_seconds(offset.seconds() as i64)?).date_naive()
-                }
-            };
-            Datetime::from_ymd(
-                date.year(),
-                date.month().try_into().ok()?,
-                date.day().try_into().ok()?,
-            )
-        }
+        let _ = local;
+        Datetime::from_ymd(
+            date.year(),
+            date.month().try_into().ok()?,
+            date.day().try_into().ok()?,
+        )
     }
 }
