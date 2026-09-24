@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-24
+
 ### Added
 
 - `compile_with_options` and `CompileOptions`: values for `sys.inputs`, PDF standards (PDF
