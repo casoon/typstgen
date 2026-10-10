@@ -151,6 +151,8 @@ pub(crate) struct TypstWorld {
     fonts: FontCache,
     files: RwLock<HashMap<FileId, FileSlot>>,
     roots: Vec<PathBuf>,
+    #[cfg(not(target_arch = "wasm32"))]
+    packages: Option<crate::packages::Packages>,
     /// The creation timestamp from [`CompileOptions`], if any.
     fixed_now: Option<chrono::DateTime<chrono::Utc>>,
     #[cfg(not(target_arch = "wasm32"))]
@@ -230,6 +232,8 @@ impl TypstWorld {
             fonts: FontCache::new(config),
             files: RwLock::new(HashMap::new()),
             roots,
+            #[cfg(not(target_arch = "wasm32"))]
+            packages: config.map(crate::packages::Packages::new),
             fixed_now: options
                 .creation_timestamp
                 .and_then(|seconds| chrono::DateTime::from_timestamp(seconds, 0)),
@@ -262,10 +266,7 @@ impl TypstWorld {
             }
         }
 
-        let result = self
-            .path_for(id)
-            .ok_or_else(|| FileError::NotFound(id.vpath().get_with_slash().into()))
-            .and_then(|path| load(&path));
+        let result = self.path_for(id).and_then(|path| load(&path));
 
         let mut files = self
             .files
@@ -278,7 +279,7 @@ impl TypstWorld {
     /// The path shown in diagnostics: the real file, relative to the working
     /// directory where possible, otherwise the virtual path.
     pub(crate) fn display_path(&self, id: FileId) -> String {
-        let Some(path) = self.path_for(id) else {
+        let Ok(path) = self.path_for(id) else {
             return id.vpath().get_without_slash().to_owned();
         };
         std::env::current_dir()
@@ -290,15 +291,26 @@ impl TypstWorld {
             .to_string()
     }
 
-    fn path_for(&self, id: FileId) -> Option<PathBuf> {
-        if *id.root() != VirtualRoot::Project {
-            return None;
+    /// The file on disk for `id`: a project file is looked up in every root,
+    /// a package file in its package directory.
+    fn path_for(&self, id: FileId) -> FileResult<PathBuf> {
+        let not_found = || FileError::NotFound(id.vpath().get_with_slash().into());
+        match id.root() {
+            VirtualRoot::Project => self
+                .roots
+                .iter()
+                .filter_map(|root| id.vpath().realize(root).ok())
+                .find(|path| path.is_file())
+                .ok_or_else(not_found),
+            #[cfg(not(target_arch = "wasm32"))]
+            VirtualRoot::Package(spec) => {
+                let packages = self.packages.as_ref().ok_or_else(not_found)?;
+                let root = packages.root(spec)?;
+                id.vpath().realize(&root).map_err(|_| not_found())
+            }
+            #[cfg(target_arch = "wasm32")]
+            VirtualRoot::Package(_) => Err(not_found()),
         }
-
-        self.roots
-            .iter()
-            .filter_map(|root| id.vpath().realize(root).ok())
-            .find(|path| path.is_file())
     }
 }
 

@@ -29,6 +29,7 @@ fn compiles_a_document_with_an_import_from_the_template_root() {
         template_paths: vec![template_root],
         font_paths: vec![],
         use_system_fonts: false,
+        ..Config::default()
     };
     let pdf = compile(&input, &config).expect("compile Typst document");
 
@@ -74,6 +75,7 @@ fn config_with(template_paths: Vec<std::path::PathBuf>) -> Config {
         template_paths,
         font_paths: vec![],
         use_system_fonts: false,
+        ..Config::default()
     }
 }
 
@@ -420,4 +422,83 @@ fn cli_reads_source_date_epoch() {
         .status()
         .expect("run typstgen CLI");
     assert!(status.success());
+}
+
+/// A config that only sees the packages in `dir` and never downloads.
+fn offline_packages(dir: &std::path::Path) -> Config {
+    Config {
+        package_path: Some(dir.join("data")),
+        package_cache_path: Some(dir.join("cache")),
+        download_packages: false,
+        ..config_with(vec![])
+    }
+}
+
+#[test]
+fn resolves_packages_from_the_package_directories() {
+    let temp = tempdir().expect("create temporary project");
+    for (dir, namespace, text) in [("data", "local", "Local"), ("cache", "preview", "Cached")] {
+        let package = temp.path().join(format!("{dir}/{namespace}/greet/0.1.0"));
+        fs::create_dir_all(package.join("src")).expect("create package directory");
+        fs::write(
+            package.join("typst.toml"),
+            "[package]\nname = \"greet\"\nversion = \"0.1.0\"\nentrypoint = \"src/lib.typ\"\n",
+        )
+        .expect("write package manifest");
+        fs::write(
+            package.join("src/lib.typ"),
+            format!("#import \"text.typ\": word\n#let greet() = [{text} #word]"),
+        )
+        .expect("write package entrypoint");
+        fs::write(package.join("src/text.typ"), "#let word = [package]")
+            .expect("write package module");
+    }
+
+    let input = temp.path().join("document.typ");
+    fs::write(
+        &input,
+        "#import \"@local/greet:0.1.0\" as local\n#import \"@preview/greet:0.1.0\" as cached\n#local.greet() #cached.greet()",
+    )
+    .expect("write input");
+
+    let pdf = compile(&input, &offline_packages(temp.path())).expect("compile with packages");
+    assert!(pdf.starts_with(b"%PDF-"));
+}
+
+#[test]
+fn reports_a_missing_package_without_downloading() {
+    let temp = tempdir().expect("create temporary project");
+    let input = temp.path().join("document.typ");
+    fs::write(&input, "#import \"@preview/does-not-exist:0.1.0\": *").expect("write input");
+
+    let error = compile(&input, &offline_packages(temp.path())).expect_err("package is missing");
+    let Error::Compile(message) = error else {
+        panic!("expected a compile error, got {error:?}");
+    };
+    assert!(message.contains("package not found"), "{message}");
+}
+
+#[test]
+fn compiles_citations_and_a_bibliography() {
+    let temp = tempdir().expect("create temporary project");
+    fs::write(
+        temp.path().join("refs.bib"),
+        "@book{knuth1984, author = {Donald E. Knuth}, title = {The TeXbook}, publisher = {Addison-Wesley}, year = {1984}}",
+    )
+    .expect("write bibliography");
+    let input = temp.path().join("paper.typ");
+    fs::write(
+        &input,
+        "#set document(date: datetime(year: 2026, month: 1, day: 1))\nSee @knuth1984.\n#bibliography(\"refs.bib\", style: \"ieee\")",
+    )
+    .expect("write input");
+
+    let options = CompileOptions {
+        pdf_standards: vec![PdfStandard::A2b],
+        ..CompileOptions::default()
+    };
+    let output = compile_with_options(&input, &config_with(vec![]), &options)
+        .expect("compile citations as PDF/A-2b");
+    assert!(output.pdf.starts_with(b"%PDF-"));
+    assert!(output.warnings.is_empty(), "{:?}", output.warnings);
 }

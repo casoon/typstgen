@@ -56,10 +56,17 @@ wasm-bindgen = { version = "0.2", optional = true }
 fontdb = "0.24"
 # System clock for `datetime.today()`.
 chrono = { version = "0.4", features = ["clock"] }
+# Package directories (`@local/…`, cached `@preview/…`) at the same locations
+# the typst CLI uses, and unpacking of Typst Universe archives.
+typst-kit = { version = "0.15", default-features = false, features = ["system-packages"] }
+# HTTPS client for Typst Universe downloads (pure-Rust TLS, no OpenSSL).
+ureq = { version = "2.12", default-features = false, features = ["tls", "proxy-from-env"], optional = true }
 
 [features]
-default = ["cli"]
+default = ["cli", "download"]
 cli = ["dep:clap"]
+# Download missing `@preview` packages from Typst Universe (native only).
+download = ["dep:ureq"]
 wasm = ["dep:wasm-bindgen"]
 
 [dev-dependencies]

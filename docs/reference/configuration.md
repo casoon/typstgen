@@ -17,11 +17,15 @@ order: 2
 | `template_paths` | array of paths | `["./templates", "./.typstgen/templates"]` | Directories searched for imports, in order, after the input's own folder. Missing entries and files are skipped; none has to exist. |
 | `font_paths` | array of paths | `[]` | Extra font directories or font files. Native builds only. |
 | `use_system_fonts` | boolean | `true` | Add the fonts installed on the machine. Native builds only. |
+| `package_path` | path | the typst CLI's package data directory | Locally installed packages (`@local/…`, any namespace). Native builds only. |
+| `package_cache_path` | path | the typst CLI's package cache directory | Downloaded `@preview` packages. Native builds only. |
+| `download_packages` | boolean | `true` | Fetch missing `@preview` packages from Typst Universe into the cache. Needs the `download` feature (on by default). |
 
 ```toml
 template_paths = ["templates", "."]
 font_paths = ["fonts"]
 use_system_fonts = false
+download_packages = false
 ```
 
 - Paths are relative to the working directory, not to the config file.
@@ -37,4 +41,5 @@ use_system_fonts = false
   ```
 
 How the template directory is chosen and imports are resolved is described in
-[Templates and imports](../../guides/templates/); fonts in [Fonts](../../guides/fonts/).
+[Templates and imports](../../guides/templates/); fonts in [Fonts](../../guides/fonts/); packages in
+[Packages and bibliographies](../../guides/packages-and-bibliography/).

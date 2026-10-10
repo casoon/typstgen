@@ -19,6 +19,8 @@
 pub mod config;
 pub mod error;
 pub mod options;
+#[cfg(not(target_arch = "wasm32"))]
+mod packages;
 mod world;
 
 #[cfg(feature = "wasm")]
