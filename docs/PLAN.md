@@ -11,8 +11,9 @@ bestimmt, nicht hartcodiert. Nutzbar als:
 - Rust-Lib (`typstgen::compile(path, &config)`)
 - Wasm (Browser/Cloudflare-Worker-tauglich)
 
-Bewusst kein Ersatz für `docgen` als Ganzes — kein Client-/Projekt-Management,
-keine Datenbank, kein interaktiver Modus. Nur: `.typ` rein, PDF raus.
+Nachfolger von `docgen` für die PDF-Erzeugung (Entscheidung 2026-10-10; docgen ist
+im Wartungsmodus). Bewusst ohne docgens Client-/Projekt-Management, Datenbank und
+interaktiven Modus. Nur: `.typ` rein, PDF raus.
 
 ## Ausgangslage: zwei bestehende eigene Projekte
 
