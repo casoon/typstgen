@@ -19,6 +19,8 @@ All notable changes to this project are documented in this file. The format is b
   default.
 - `render_png` renders one page as PNG (`png` feature) and `Error::PageOutOfRange`.
 - `Output::pages`: the number of pages of the compiled document.
+- Example `examples/thesis.typ`: a seminar paper built on a local package
+  (`examples/packages/local/thesis/0.1.0`) with BibTeX citations, compiled as PDF/A-2b.
 - Typst packages: `#import "@preview/…"` and `@local/…` resolve from the same package data and
   cache directories as the typst CLI. Missing `@preview` packages are downloaded from Typst
   Universe (`download` feature, on by default, pure-Rust TLS). New `typstgen.toml` keys

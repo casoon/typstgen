@@ -80,3 +80,11 @@ typstgen compile paper.typ --pdf-standard a-2b --creation-timestamp "$(date +%s)
 ```
 
 Citations, formulas and the bibliography are compatible with PDF/A-2b and tagged PDF.
+
+## Example: a seminar paper as a local package
+
+`examples/` in the repository contains a complete seminar paper. Its layout (title page, outlines,
+numbering, bibliography, appendix, declaration; German and English) is a package in
+`examples/packages/local/thesis/0.1.0/`, imported as `@local/thesis:0.1.0` through
+`package_path = "packages"`. Copy that folder into your own package directory to use the layout in
+any project. The compiled PDF is in the [showcase](../../../showcase/).

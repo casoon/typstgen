@@ -12,6 +12,10 @@ for doc in hello letter fonts; do
   "$bin" compile "$doc.typ" --config typstgen.toml
 done
 
+# Archival build: PDF/A-2b with a fixed date, so the committed PDF is reproducible.
+"$bin" compile thesis.typ --config typstgen.toml --pdf-standard a-2b \
+  --creation-timestamp 1759276800
+
 "$bin" --help > help.txt
 "$bin" compile --help > compile-help.txt
 

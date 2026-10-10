@@ -21,7 +21,7 @@ function source(file: string): string {
 /** examples/ in the repository; `astro build` and `astro dev` run in site/. */
 const examplesDir = resolve(process.cwd(), '../examples');
 
-export const pdfNames = ['letter', 'fonts', 'hello'];
+export const pdfNames = ['thesis', 'letter', 'fonts', 'hello'];
 
 export function readPdf(name: string): Buffer {
   return readFileSync(resolve(examplesDir, `${name}.pdf`));
@@ -38,6 +38,13 @@ export function pdfViewer(name: string, label: string): string {
 }
 
 const pdfExamples = [
+  {
+    slug: 'thesis',
+    title: 'Seminar paper with citations',
+    tags: ['local package', 'BibTeX', 'PDF/A-2b'],
+    description:
+      'thesis.typ imports @local/thesis:0.1.0 from examples/packages (package_path in typstgen.toml) and cites from refs.bib in APA style. Title page, outlines, numbered equation, table, appendix and declaration come from the package. Compiled with --pdf-standard a-2b and a fixed --creation-timestamp.',
+  },
   {
     slug: 'letter',
     title: 'Letter from a template',
