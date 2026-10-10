@@ -32,6 +32,12 @@ pub struct CompileOptions {
     /// smaller. Required by PDF/UA-1 and PDF/A level `a`. Ignored (treated
     /// as `false`) when [`pages`](Self::pages) is set.
     pub pdf_tags: bool,
+    /// A ZUGFeRD / Factur-X invoice XML (from
+    /// [`zugferd::xml_from_docgen`](crate::zugferd::xml_from_docgen)) to embed
+    /// as `factur-x.xml`, together with the Factur-X XMP metadata. Needs a
+    /// PDF/A-3 standard in [`pdf_standards`](Self::pdf_standards).
+    #[cfg(feature = "zugferd")]
+    pub zugferd_xml: Option<Vec<u8>>,
 }
 
 impl Default for CompileOptions {
@@ -42,6 +48,8 @@ impl Default for CompileOptions {
             creation_timestamp: None,
             pages: Vec::new(),
             pdf_tags: true,
+            #[cfg(feature = "zugferd")]
+            zugferd_xml: None,
         }
     }
 }

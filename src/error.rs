@@ -37,6 +37,12 @@ pub enum Error {
         pages: usize,
     },
 
+    /// The ZUGFeRD invoice data is incomplete or inconsistent, or the PDF
+    /// could not be completed. One problem per line.
+    #[cfg(feature = "zugferd")]
+    #[error("ZUGFeRD invoice:\n{0}")]
+    Zugferd(String),
+
     /// Any other I/O error, for example while reading the input.
     #[error(transparent)]
     Io(#[from] std::io::Error),

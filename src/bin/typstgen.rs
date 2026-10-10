@@ -45,6 +45,15 @@ enum Commands {
         /// Write an untagged PDF (smaller, but without document structure)
         #[arg(long)]
         no_pdf_tags: bool,
+        /// Embed a ZUGFeRD / Factur-X invoice (EN 16931) built from this docgen invoice JSON;
+        /// needs --company and a PDF/A-3 standard
+        #[cfg(feature = "zugferd")]
+        #[arg(long, value_name = "INVOICE_JSON", requires = "company")]
+        zugferd: Option<PathBuf>,
+        /// company.json with the seller's data, for --zugferd
+        #[cfg(feature = "zugferd")]
+        #[arg(long, value_name = "COMPANY_JSON", requires = "zugferd")]
+        company: Option<PathBuf>,
     },
     /// Serve the Model Context Protocol on stdin/stdout for AI agents
     #[cfg(feature = "mcp")]
@@ -71,13 +80,31 @@ fn main() -> ExitCode {
             creation_timestamp,
             pages,
             no_pdf_tags,
+            #[cfg(feature = "zugferd")]
+            zugferd,
+            #[cfg(feature = "zugferd")]
+            company,
         } => {
+            #[cfg(feature = "zugferd")]
+            let zugferd_xml = match zugferd
+                .zip(company)
+                .map(|(invoice, company)| zugferd_xml(&invoice, &company))
+            {
+                Some(Ok(xml)) => Some(xml.into_bytes()),
+                Some(Err(err)) => {
+                    eprintln!("error: {err}");
+                    return ExitCode::FAILURE;
+                }
+                None => None,
+            };
             let options = CompileOptions {
                 inputs: inputs.into_iter().collect(),
                 pdf_standards,
                 creation_timestamp,
                 pages,
                 pdf_tags: !no_pdf_tags,
+                #[cfg(feature = "zugferd")]
+                zugferd_xml,
             };
             let config = match Config::load(config.as_deref()) {
                 Ok(config) => config,
@@ -135,6 +162,15 @@ fn serve_mcp(root: Option<PathBuf>, config: Option<PathBuf>) -> Result<(), Strin
         .map_err(|err| err.to_string())?;
     let config = Config::load(config.as_deref()).map_err(|err| err.to_string())?;
     typstgen::mcp::serve(root, config).map_err(|err| err.to_string())
+}
+
+#[cfg(feature = "zugferd")]
+fn zugferd_xml(invoice: &std::path::Path, company: &std::path::Path) -> Result<String, String> {
+    let read = |path: &std::path::Path| {
+        std::fs::read_to_string(path).map_err(|err| format!("{}: {err}", path.display()))
+    };
+    typstgen::zugferd::xml_from_docgen(&read(invoice)?, &read(company)?)
+        .map_err(|err| err.to_string())
 }
 
 fn parse_input(raw: &str) -> Result<(String, String), String> {

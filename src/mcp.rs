@@ -23,7 +23,9 @@ Compile Typst documents (.typ) to PDF with an embedded Typst engine. Paths are r
 workspace directory. Typical loop: write or edit a .typ file, call `check` and fix every reported \
 error (each line names file:line:column), look at a page with `preview`, then `compile`. For \
 archiving, compile with pdf_standards [\"a-2b\"] (or \"a-3b\" with attachments) and a \
-creation_timestamp so the output is reproducible. `list_templates` shows the templates that \
+creation_timestamp so the output is reproducible. For a ZUGFeRD e-invoice pass zugferd {invoice, \
+company} (docgen JSON files) with pdf_standards [\"a-3b\"]; problems in the data are listed per \
+field. `list_templates` shows the templates that \
 #import can use. Typst packages (#import \"@preview/name:version\") are resolved automatically.";
 
 /// Values shared by `check`, `preview` and `compile`.
@@ -47,6 +49,19 @@ struct CompileParams {
     /// PDF standards to enforce, e.g. ["a-2b"], ["a-3b"], ["ua-1"], ["a-2a", "ua-1"].
     #[serde(default)]
     pdf_standards: Vec<String>,
+    /// Embed a ZUGFeRD / Factur-X e-invoice (EN 16931) built from docgen JSON
+    /// files in the workspace. Needs pdf_standards ["a-3b"].
+    #[cfg(feature = "zugferd")]
+    zugferd: Option<ZugferdParams>,
+}
+
+#[cfg(feature = "zugferd")]
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+struct ZugferdParams {
+    /// Invoice data (docgen invoice JSON), relative to the workspace.
+    invoice: String,
+    /// Seller data (company.json), relative to the workspace.
+    company: String,
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
@@ -155,7 +170,26 @@ impl TypstgenServer {
             Ok(standards) => standards,
             Err(message) => return Ok(failure(message)),
         };
-        let options = options(&params.document, standards);
+        #[allow(unused_mut)]
+        let mut options = options(&params.document, standards);
+        #[cfg(feature = "zugferd")]
+        if let Some(zugferd) = &params.zugferd {
+            let xml = self
+                .input(&zugferd.invoice)
+                .and_then(|invoice| Ok((invoice, self.input(&zugferd.company)?)))
+                .and_then(|(invoice, company)| {
+                    let read = |path: &Path| {
+                        std::fs::read_to_string(path)
+                            .map_err(|error| format!("{}: {error}", path.display()))
+                    };
+                    crate::zugferd::xml_from_docgen(&read(&invoice)?, &read(&company)?)
+                        .map_err(|error| error.to_string())
+                });
+            match xml {
+                Ok(xml) => options.zugferd_xml = Some(xml.into_bytes()),
+                Err(message) => return Ok(failure(message)),
+            }
+        }
         let config = Arc::clone(&self.config);
         let result =
             blocking(move || crate::compile_with_options(&input, &config, &options)).await?;

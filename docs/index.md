@@ -34,7 +34,8 @@ One crate, four entry points:
 - **Guides**: how [templates and imports](guides/templates/) are resolved, which
   [fonts](guides/fonts/) are available, how to pass [inputs and PDF options](guides/inputs-and-pdf/), and how
   [packages and bibliographies](guides/packages-and-bibliography/) work, and how
-  [AI agents](guides/ai-agents/) use typstgen over MCP.
+  [AI agents](guides/ai-agents/) use typstgen over MCP, and how to produce
+  [ZUGFeRD e-invoices](guides/e-invoices/).
 - **Reference**: [CLI options](reference/cli/), [`typstgen.toml`](reference/configuration/) and the
   [Rust and Wasm API](reference/library/). Item-level documentation lives on
   [docs.rs](https://docs.rs/typstgen).

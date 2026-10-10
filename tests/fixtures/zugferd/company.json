@@ -1,0 +1,18 @@
+{
+  "name": "Northwind Studio",
+  "language": "de",
+  "address": {
+    "street": "Harbour Road",
+    "house_number": "1",
+    "postal_code": "10117",
+    "city": "Berlin",
+    "country": "Deutschland"
+  },
+  "contact": { "email": "billing@northwind.example" },
+  "vat_id": "DE123456789",
+  "bank_account": {
+    "account_holder": "Northwind Studio",
+    "iban": "DE89 3704 0044 0532 0130 00",
+    "bic": "COBADEFFXXX"
+  }
+}

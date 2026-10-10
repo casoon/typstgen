@@ -1,0 +1,98 @@
+---
+title: E-invoices (ZUGFeRD)
+description: Turn an invoice into a ZUGFeRD / Factur-X e-invoice — a PDF/A-3 with the EN 16931 invoice data embedded as XML — from the same JSON that renders the invoice.
+order: 6
+---
+
+A ZUGFeRD (Factur-X) invoice is a PDF/A-3 that carries the invoice data a second time, as
+machine-readable XML (`factur-x.xml`, UN/CEFACT CII). typstgen builds that XML from the docgen
+invoice JSON and `company.json`, the same files the invoice template of
+[business-templates](https://github.com/casoon/typst-business-templates) renders, so the PDF and
+the XML cannot drift apart. The profile is EN 16931 (ZUGFeRD "Comfort").
+
+```sh
+typstgen compile rechnung.typ --pdf-standard a-3b --creation-timestamp "$(date +%s)" \
+  --zugferd rechnung.json --company company.json
+```
+
+`rechnung.typ` can be any document, for example:
+
+```typst
+#import "@local/business-templates:0.1.0": invoice
+#invoice(data: json("/rechnung.json"), company: json("/company.json"))
+```
+
+typstgen then
+
+1. checks the data and writes the CII XML,
+2. lets Typst embed it as `factur-x.xml` with the relationship "Alternative",
+3. adds the Factur-X schema to the XMP metadata. Typst cannot write custom XMP, so this is
+   appended as an incremental update; Typst's own output stays byte for byte in the file.
+
+A PDF/A-3 standard (`a-3b`, `a-3u` or `a-3a`) is required.
+
+## What is read from the JSON
+
+| EN 16931 | docgen JSON |
+| --- | --- |
+| Invoice number, date (BT-1, BT-2) | `metadata.invoice_number`, `metadata.invoice_date` |
+| Delivery date (BT-72) | `metadata.delivery_date` (optional) |
+| Billing period (BT-73/74) | `metadata.performance_period` as `MM/YYYY` (optional) |
+| Seller (BG-4) | `company.json`: `name`, `address`, `contact.email`, `vat_id` and/or `tax_id` |
+| Buyer (BG-7) | `recipient`: `company` (or `name`), `address`, `vat_id`; `metadata.customer_number` as buyer ID |
+| Lines (BG-25) | `items`: `description`, `sub_items`, `quantity`, `unit`, `unit_price`, `vat_rate`, `total` |
+| Payment (BG-16, BT-20, BT-9) | `payment.bank_account` (or the company's), `payment.payment_terms`, `payment.due_date` |
+
+Units are mapped to UN/ECE Recommendation 20 codes (`Tage` → `DAY`, `Std.` → `HUR`, `Stk` → `H87`,
+`Pauschal` → `LS` …); set `unit_code` on an item for anything else. Countries are given as names
+(`Deutschland`) or as `country_code` (ISO 3166-1).
+
+VAT categories come from `vat_rate.code`:
+
+| `code` | Category | Needs |
+| --- | --- | --- |
+| `Standard`, `Reduced` (or any rate above 0) | S | a rate above 0 |
+| `Zero` | Z | rate 0 |
+| `Exempt` | E | rate 0 and `exemption_reason` (text) or `exemption_reason_code` |
+| `ReverseCharge` | AE | rate 0 and the buyer's `recipient.vat_id` |
+
+## Checks
+
+Before writing anything typstgen recomputes the invoice: line amounts from quantity × price, VAT
+per category, totals. If the JSON states a line total or a total that differs, the build fails,
+because the PDF would show a different number than the XML. All problems are reported at once:
+
+```text
+error: ZUGFeRD invoice:
+recipient.address.country: unknown country, set recipient.address.country_code (ISO 3166-1, e.g. "DE")
+items[0]: unit "Kisten" has no UN/ECE code, set items[0].unit_code (e.g. "C62")
+items[1]: total 1.00 does not match quantity × unit price = 11200.00
+```
+
+These checks cover the rules this data can break; they are not a complete EN 16931 validator.
+Check the result with an external validator before you send invoices, for example
+[Mustang](https://www.mustangproject.org/) (PDF/A-3 and the XML against EN 16931):
+
+```sh
+java -jar Mustang-CLI.jar --action validate --source rechnung.pdf
+```
+
+Invoices built from the docgen examples, with mixed VAT rates, reverse charge and an exempt
+invoice, were validated with Mustang 2.26.0 and veraPDF 1.30 on 10 October 2026 without errors.
+Without `delivery_date` Mustang reports a warning (PEPPOL-EN16931-R008, empty delivery element);
+the invoice stays valid.
+
+## From an AI agent
+
+The MCP tool `compile` takes the same input:
+
+```json
+{ "path": "rechnung.typ", "pdf_standards": ["a-3b"],
+  "zugferd": { "invoice": "rechnung.json", "company": "company.json" } }
+```
+
+## Not covered
+
+- XRechnung (the pure-XML format for German public-sector buyers with a Leitweg-ID).
+- Credit notes (type code 381), allowances and charges, prepaid amounts.
+- Other currencies than the one in the JSON are not converted.

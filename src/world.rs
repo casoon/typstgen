@@ -216,7 +216,7 @@ impl TypstWorld {
 
     fn new(
         main_id: FileId,
-        source: String,
+        #[allow(unused_mut)] mut source: String,
         roots: Vec<PathBuf>,
         config: Option<&Config>,
         options: &CompileOptions,
@@ -226,7 +226,12 @@ impl TypstWorld {
             .iter()
             .map(|(key, value)| (key.as_str().into(), value.as_str().into_value()))
             .collect();
-        Self {
+        // ZUGFeRD: the main file attaches the invoice XML, served from memory.
+        #[cfg(feature = "zugferd")]
+        if options.zugferd_xml.is_some() {
+            source.push_str(crate::zugferd::ATTACH);
+        }
+        let world = Self {
             main: Source::new(main_id, source),
             library: typst::utils::LazyHash::new(Library::builder().with_inputs(inputs).build()),
             fonts: FontCache::new(config),
@@ -239,10 +244,16 @@ impl TypstWorld {
                 .and_then(|seconds| chrono::DateTime::from_timestamp(seconds, 0)),
             #[cfg(not(target_arch = "wasm32"))]
             now: OnceLock::new(),
+        };
+        #[cfg(feature = "zugferd")]
+        if let Some(xml) = &options.zugferd_xml {
+            let path = VirtualPath::new(crate::zugferd::VIRTUAL_PATH).expect("valid virtual path");
+            world.add_file(path, xml.clone());
         }
+        world
     }
 
-    #[cfg(feature = "wasm")]
+    #[cfg(any(feature = "wasm", feature = "zugferd"))]
     fn add_file(&self, path: VirtualPath, contents: Vec<u8>) {
         let id = project_file(path);
         let mut files = self

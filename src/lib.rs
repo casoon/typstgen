@@ -27,6 +27,8 @@ mod world;
 pub mod mcp;
 #[cfg(feature = "wasm")]
 pub mod wasm;
+#[cfg(feature = "zugferd")]
+pub mod zugferd;
 
 pub use config::Config;
 pub use error::{Error, Result};
@@ -100,6 +102,12 @@ fn compile_world(world: &world::TypstWorld, options: &CompileOptions) -> Result<
     let (document, warnings) = compile_document(world)?;
     let pdf = typst_pdf::pdf(&document, &pdf_options)
         .map_err(|errors| compile_error(world, &errors, &warnings))?;
+    #[cfg(feature = "zugferd")]
+    let pdf = if options.zugferd_xml.is_some() {
+        zugferd::pdf::add_factur_x_metadata(pdf).map_err(Error::Zugferd)?
+    } else {
+        pdf
+    };
     Ok(Output {
         pdf,
         pages: document.pages().len(),
@@ -181,6 +189,19 @@ pub fn render_png(
 }
 
 fn pdf_options(options: &CompileOptions) -> Result<typst_pdf::PdfOptions> {
+    #[cfg(feature = "zugferd")]
+    if options.zugferd_xml.is_some()
+        && !options.pdf_standards.iter().any(|standard| {
+            matches!(
+                standard,
+                PdfStandard::A3a | PdfStandard::A3b | PdfStandard::A3u
+            )
+        })
+    {
+        return Err(Error::Zugferd(
+            "a ZUGFeRD invoice needs a PDF/A-3 standard, e.g. --pdf-standard a-3b".to_owned(),
+        ));
+    }
     let standards: Vec<_> = options
         .pdf_standards
         .iter()
