@@ -23,12 +23,13 @@ std::fs::write("example.pdf", pdf_bytes)?;
 | Item | Purpose |
 | --- | --- |
 | `compile(input: &Path, config: &Config) -> Result<Vec<u8>>` | Compiles a `.typ` file and returns the PDF bytes. Warnings are discarded. |
-| `compile_with_warnings(input: &Path, config: &Config) -> Result<Output>` | Same, but returns an `Output` with `pdf` and the formatted `warnings`. |
+| `compile_with_warnings(input: &Path, config: &Config) -> Result<Output>` | Same, but returns an `Output` with `pdf`, the page count `pages` and the formatted `warnings`. |
 | `compile_with_options(input: &Path, config: &Config, options: &CompileOptions) -> Result<Output>` | Same, with `sys.inputs` and PDF settings. |
+| `render_png(input, config, options, page, pixels_per_point) -> Result<Vec<u8>>` | Renders one 1-based page as PNG (`png` feature). `1.0` pixel per point is 72 dpi. |
 | `CompileOptions` | `inputs`, `pdf_standards`, `creation_timestamp`, `pages`, `pdf_tags`; see [Inputs and PDF options](../../guides/inputs-and-pdf/). `Default` exports a plain, tagged PDF. |
 | `PdfStandard` | PDF version, PDF/A or PDF/UA-1. Parses from and displays as `1.7`, `a-2b`, `ua-1` …; `PdfStandard::ALL` lists them. |
 | `PageRange` | Inclusive 1-based range with optional ends. Parses from `5`, `1-3`, `-3`, `8-`. |
-| `Config` | `template_paths`, `font_paths`, `use_system_fonts`; see [typstgen.toml](../configuration/). Implements `Default`, `Serialize` and `Deserialize`. |
+| `Config` | `template_paths`, `font_paths`, `use_system_fonts` and the package settings; see [typstgen.toml](../configuration/). Implements `Default`, `Serialize` and `Deserialize`. |
 | `Config::load(Option<&Path>)` | Reads the given file, else `./typstgen.toml`, else the defaults. |
 | `Config::template_roots()` | The configured template directories that exist, canonicalized, in order. |
 | `Error`, `Result` | Error type and alias used by all of the above. |
@@ -52,6 +53,7 @@ let config = Config {
     template_paths: vec!["templates".into()],
     font_paths: vec![],
     use_system_fonts: false,
+    ..Config::default()
 };
 ```
 
@@ -63,6 +65,7 @@ let config = Config {
 | `Config` | The config file cannot be read. |
 | `InvalidConfig` | The config file is not valid TOML for `Config`. |
 | `Compile` | Typst reported errors; the message lists them as `path:line:column: error: …` with their hints, followed by any warnings. |
+| `PageOutOfRange` | `render_png` was asked for a page the document does not have. |
 | `Io` | Any other I/O error, for example reading the input. |
 
 ## Wasm

@@ -502,3 +502,34 @@ fn compiles_citations_and_a_bibliography() {
     assert!(output.pdf.starts_with(b"%PDF-"));
     assert!(output.warnings.is_empty(), "{:?}", output.warnings);
 }
+
+#[test]
+fn output_reports_the_page_count() {
+    let temp = tempdir().expect("create temporary project");
+    let input = temp.path().join("document.typ");
+    fs::write(&input, "One\n#pagebreak()\nTwo\n#pagebreak()\nThree").expect("write input");
+
+    let output = compile_with_warnings(&input, &config_with(vec![])).expect("compile");
+    assert_eq!(output.pages, 3);
+}
+
+#[cfg(feature = "png")]
+#[test]
+fn renders_a_page_as_png() {
+    let temp = tempdir().expect("create temporary project");
+    let input = temp.path().join("document.typ");
+    fs::write(&input, "#set page(width: 100pt, height: 50pt)\nHi").expect("write input");
+    let config = config_with(vec![]);
+    let options = CompileOptions::default();
+
+    let png = typstgen::render_png(&input, &config, &options, 1, 2.0).expect("render page 1");
+    assert!(png.starts_with(b"\x89PNG"));
+    // 100pt x 50pt at 2 px/pt.
+    assert_eq!(&png[16..24], &[0, 0, 0, 200, 0, 0, 0, 100]);
+
+    let error = typstgen::render_png(&input, &config, &options, 2, 2.0).expect_err("no page 2");
+    assert!(
+        matches!(error, Error::PageOutOfRange { page: 2, pages: 1 }),
+        "{error:?}"
+    );
+}

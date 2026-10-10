@@ -31,11 +31,13 @@ cargo install --git https://github.com/casoon/typstgen
 </div>
 <div slot="library">
 
-The CLI is behind the default `cli` feature. Turn default features off to skip `clap` when you only
-need the library:
+The default features build the CLI: `cli`, `download` (fetch `@preview` packages) and `mcp` (the
+[MCP server](../../guides/ai-agents/), which brings `tokio` and `rmcp`). Turn them off when you only
+need the library, and add back what you use, for example `png` for page previews:
 
 ```sh
 cargo add typstgen --no-default-features
+cargo add typstgen --no-default-features --features download,png
 ```
 
 </div>
