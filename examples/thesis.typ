@@ -69,7 +69,13 @@ nachgeladen werden. Typst prüft diese Anforderungen bereits beim Übersetzen.
 
 = Vorgehen
 
-@einflussfaktoren ordnet jedem Einflussfaktor die Einstellung zu, mit der typstgen ihn festlegt.
+@ablauf zeigt den Weg vom Quelltext zum archivierten PDF. @einflussfaktoren ordnet jedem
+Einflussfaktor die Einstellung zu, mit der typstgen ihn festlegt.
+
+#figure(
+  image("figures/build-flow.svg", width: 72%),
+  caption: [Vom Quelltext zum archivierten PDF (erstellt mit Chartlet)],
+) <ablauf>
 
 #figure(
   table(
