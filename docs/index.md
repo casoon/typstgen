@@ -23,7 +23,7 @@ One crate, four entry points:
 | --- | --- |
 | Compile one `.typ` file to one PDF | Watch files or compile folders in bulk |
 | Resolve imports against configured template directories and Typst packages (`@preview/…`, `@local/…`) | Publish or update packages |
-| Bundle Typst's fallback fonts, optionally add system and custom fonts | Manage clients, numbering or data (that was `docgen`) |
+| Bundle Typst's fallback fonts, optionally add system and custom fonts | Manage clients, numbering or data (its predecessor `docgen` did; typstgen replaces only its PDF generation) |
 | Report Typst errors and warnings with file, line and column | Export SVG or HTML (PNG only as MCP page preview / `render_png`) |
 | Pass `sys.inputs`, enforce PDF/A or PDF/UA, export page ranges | Set the PDF identifier or `/Creator` |
 

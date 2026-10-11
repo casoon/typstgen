@@ -26,6 +26,10 @@ along the way and only ever hardcoded its template lookup paths. typstgen is
 the minimal version of the same idea: one job (`.typ` in, PDF out), with the
 template directory resolved from config instead of baked in.
 
+typstgen is the successor of docgen, which is in maintenance mode. docgen's
+templates are plain Typst and compile with typstgen; client and project
+management, numbering and `--encrypt` are not carried over.
+
 The architecture follows
 [`renderreport`](https://github.com/casoon/renderreport): embedded Typst,
 feature-gated CLI/Wasm, embedded fonts only on Wasm.

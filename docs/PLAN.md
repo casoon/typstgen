@@ -10,9 +10,11 @@ bestimmt, nicht hartcodiert. Nutzbar als:
 - CLI (`typstgen compile input.typ`)
 - Rust-Lib (`typstgen::compile(path, &config)`)
 - Wasm (Browser/Cloudflare-Worker-tauglich)
+- MCP-Server für KI-Agenten (`typstgen mcp`)
 
-Bewusst kein Ersatz für `docgen` als Ganzes — kein Client-/Projekt-Management,
-keine Datenbank, kein interaktiver Modus. Nur: `.typ` rein, PDF raus.
+Nachfolger von `docgen` für die PDF-Erzeugung (Entscheidung 2026-10-10; docgen ist
+im Wartungsmodus). Bewusst ohne docgens Client-/Projekt-Management, Datenbank und
+interaktiven Modus. Nur: `.typ` rein, PDF raus.
 
 ## Ausgangslage: zwei bestehende eigene Projekte
 
@@ -119,6 +121,14 @@ den gemeinsamen Code klar erkennen lassen, nicht vorher spekulativ bauen.
 Template-Dateien als virtuellem Dateisystem entgegen. Auf `wasm32` werden nur
 die eingebetteten Fallback-Fonts verwendet.
 
+## Erweiterungen nach Phase 2 (erledigt)
+
+- 0.3.0: `sys.inputs` und PDF-Optionen (PDF/A, PDF/UA, Zeitstempel, Seitenbereiche).
+- Typst-Packages (`@preview/…` mit Download, `@local/…`) und Bibliographien.
+- `typstgen mcp`: MCP-Server mit `check`, `preview`, `compile`, `list_templates`.
+- ZUGFeRD / Factur-X (EN 16931) aus docgen-Rechnungsdaten.
+- Archiv-Manifeste: `compile --manifest` und `typstgen verify`.
+
 ## Phase 3 — Konsolidierung (optional)
 
 Extraktion von `embedded-typst` (siehe oben), sobald beide Projekte stabil
@@ -129,6 +139,6 @@ sind und der doppelte Code sichtbar unangenehm wird.
 - Kein Datenbank-/Client-/Projekt-Management (siehe Lessons-Learned oben).
 - Kein JSON→Template-Daten-Merging wie bei `docgen compile invoice.json` —
   typstgen kompiliert eine fertige `.typ`-Datei, Daten-Injection ist Sache
-  des Aufrufers (`sys.inputs`, falls später gebraucht).
-- Keine Paket-Registry/`@local`-Package-Auflösung — nur Config-gesteuerte
-  lokale Pfade.
+  des Aufrufers (`sys.inputs`). Ausnahme: `--zugferd` liest docgen-
+  Rechnungsdaten, aber nur für das eingebettete CII-XML.
+- Packages werden aufgelöst, aber nicht veröffentlicht oder aktualisiert.
