@@ -107,11 +107,17 @@ Runs until the client closes stdin. The tools are described in [AI agents](../..
 ```text
 Check the PDFs recorded in a manifest: unchanged, same sources, identical rebuild
 
-Usage: typstgen verify [MANIFEST]
+Usage: typstgen verify [OPTIONS] [MANIFEST]
 
 Arguments:
   [MANIFEST]  The manifest written by `compile --manifest` [default: archive.json]
+
+Options:
+      --rebuild-only  Do not read the stored PDFs; only rebuild and compare with the recorded SHA-256 (for CI, where the archived PDFs are not checked out)
 ```
+
+`--rebuild-only` skips reading the stored PDFs and only compares the rebuild with the recorded
+SHA-256, for CI checkouts that do not contain the archived PDFs.
 
 Prints one line per document (`ok` or `FAILED` with the reasons) and exits with code `1` if any
 document fails. Described in [Archiving](../../guides/archiving/).

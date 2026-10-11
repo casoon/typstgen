@@ -28,7 +28,10 @@ All notable changes to this project are documented in this file. The format is b
 - Archive manifests (`archive` feature, on by default): `compile --manifest archive.json` records
   the options and the SHA-256 of the PDF, of every file Typst read and of every font file loaded;
   `typstgen verify` checks that the PDFs are unchanged and rebuild byte for byte. Library:
-  `archive::{compile_and_record, verify, Job, Report}`, `Error::Archive`.
+  `archive::{compile_and_record, verify, Job, Report}`, `Error::Archive`. `verify --rebuild-only`
+  skips the stored PDFs for CI checkouts.
+- Guide "Checks and CI": pinned fonts and packages, a local verify script and a tag-triggered
+  GitHub Actions workflow.
 - Example `examples/thesis.typ`: a seminar paper built on a local package
   (`examples/packages/local/thesis/0.1.0`) with BibTeX citations, compiled as PDF/A-2b.
 - Typst packages: `#import "@preview/…"` and `@local/…` resolve from the same package data and

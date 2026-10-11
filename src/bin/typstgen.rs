@@ -66,6 +66,10 @@ enum Commands {
         /// The manifest written by `compile --manifest`
         #[arg(default_value = "archive.json")]
         manifest: PathBuf,
+        /// Do not read the stored PDFs; only rebuild and compare with the recorded SHA-256
+        /// (for CI, where the archived PDFs are not checked out)
+        #[arg(long)]
+        rebuild_only: bool,
     },
     /// Serve the Model Context Protocol on stdin/stdout for AI agents
     #[cfg(feature = "mcp")]
@@ -171,7 +175,10 @@ fn main() -> ExitCode {
             }
         }
         #[cfg(feature = "archive")]
-        Commands::Verify { manifest } => verify(&manifest),
+        Commands::Verify {
+            manifest,
+            rebuild_only,
+        } => verify(&manifest, rebuild_only),
         #[cfg(feature = "mcp")]
         Commands::Mcp { root, config } => match serve_mcp(root, config) {
             Ok(()) => ExitCode::SUCCESS,
@@ -203,8 +210,8 @@ fn record(manifest: &std::path::Path, job: &typstgen::archive::Job) -> ExitCode 
 }
 
 #[cfg(feature = "archive")]
-fn verify(manifest: &std::path::Path) -> ExitCode {
-    let reports = match typstgen::archive::verify(manifest) {
+fn verify(manifest: &std::path::Path, rebuild_only: bool) -> ExitCode {
+    let reports = match typstgen::archive::verify(manifest, rebuild_only) {
         Ok(reports) => reports,
         Err(err) => {
             eprintln!("error: {err}");

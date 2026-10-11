@@ -221,11 +221,15 @@ pub fn compile_and_record(manifest: &Path, job: &Job, config: &Config) -> Result
 /// sources and fonts are the recorded ones, and a rebuild with the recorded
 /// options produces the same bytes.
 ///
+/// With `rebuild_only`, the stored PDFs are not read: the rebuild is only
+/// compared with the recorded SHA-256. That is the check for a CI job, which
+/// has the sources from version control but not the archived PDFs.
+///
 /// # Errors
 ///
 /// [`Error::Archive`] if the manifest cannot be read. Problems with single
 /// documents are reported in their [`Report`].
-pub fn verify(manifest: &Path) -> Result<Vec<Report>> {
+pub fn verify(manifest: &Path, rebuild_only: bool) -> Result<Vec<Report>> {
     let archive = load(manifest)?;
     if archive.documents.is_empty() {
         return Err(Error::Archive(format!(
@@ -236,10 +240,12 @@ pub fn verify(manifest: &Path) -> Result<Vec<Report>> {
     let mut reports = Vec::new();
     for (document, entry) in &archive.documents {
         let mut problems = Vec::new();
-        match std::fs::read(document) {
-            Ok(pdf) if sha256(&pdf) == entry.sha256 => {}
-            Ok(_) => problems.push("the PDF differs from the recorded one".to_owned()),
-            Err(error) => problems.push(format!("the PDF cannot be read: {error}")),
+        if !rebuild_only {
+            match std::fs::read(document) {
+                Ok(pdf) if sha256(&pdf) == entry.sha256 => {}
+                Ok(_) => problems.push("the PDF differs from the recorded one".to_owned()),
+                Err(error) => problems.push(format!("the PDF cannot be read: {error}")),
+            }
         }
         let pdf_standards: std::result::Result<Vec<PdfStandard>, String> = entry
             .pdf_standards
