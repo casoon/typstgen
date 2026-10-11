@@ -690,7 +690,7 @@ mod archive {
         );
         assert_eq!(entry["inputs"]["to"], "Ada");
 
-        let reports = verify(&manifest).expect("verify");
+        let reports = verify(&manifest, false).expect("verify");
         assert!(
             reports.iter().all(|report| report.problems.is_empty()),
             "{reports:?}"
@@ -699,7 +699,7 @@ mod archive {
         // A changed import and a changed PDF are both reported.
         fs::write(dir.join("part.typ"), "#let greeting = [Hi]").expect("change import");
         fs::write(dir.join("letter.pdf"), b"%PDF-tampered").expect("change pdf");
-        let problems = &verify(&manifest).expect("verify")[0].problems;
+        let problems = &verify(&manifest, false).expect("verify")[0].problems;
         assert!(
             problems
                 .iter()

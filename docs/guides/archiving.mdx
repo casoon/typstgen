@@ -46,7 +46,8 @@ Byte-identical rebuilds need a fixed date: pass `--creation-timestamp` (or `SOUR
 when recording. A document recorded without one verifies only if it never uses the current date.
 A newer Typst version may typeset differently; `verify` then names both versions. Run `compile --manifest`
 and `verify` from the same directory, because paths are relative to it, like those in `typstgen.toml`.
-`verify` exits with code 1 if any document fails, so it works as a CI step.
+`verify` exits with code 1 if any document fails, so it works as a CI step; see
+[Checks and CI](../ci/) for `--rebuild-only` and a workflow.
 
 ## A layout that stays readable
 
