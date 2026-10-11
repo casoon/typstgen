@@ -27,6 +27,18 @@ pub struct Config {
     /// Scan system fonts. Always forced to `false` on the wasm target,
     /// regardless of this setting — see src/world.rs.
     pub use_system_fonts: bool,
+    /// Directory of locally installed packages (`@local/…` and any other
+    /// namespace). `None` uses the typst CLI's data directory, e.g.
+    /// `~/Library/Application Support/typst/packages` on macOS. Native only.
+    pub package_path: Option<PathBuf>,
+    /// Directory of downloaded `@preview` packages. `None` uses the typst
+    /// CLI's cache directory, e.g. `~/Library/Caches/typst/packages` on
+    /// macOS, so packages the typst CLI already fetched are reused. Native only.
+    pub package_cache_path: Option<PathBuf>,
+    /// Download `@preview` packages that are not in the cache from Typst
+    /// Universe. Set to `false` for offline, fully pinned builds. Has no
+    /// effect without the `download` feature.
+    pub download_packages: bool,
 }
 
 impl Default for Config {
@@ -38,6 +50,9 @@ impl Default for Config {
             ],
             font_paths: vec![],
             use_system_fonts: true,
+            package_path: None,
+            package_cache_path: None,
+            download_packages: true,
         }
     }
 }

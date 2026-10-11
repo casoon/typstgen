@@ -6,6 +6,18 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Breaking
+
+- `Config` has three new public fields; struct literals need `..Config::default()`.
+
+### Added
+
+- Typst packages: `#import "@preview/…"` and `@local/…` resolve from the same package data and
+  cache directories as the typst CLI. Missing `@preview` packages are downloaded from Typst
+  Universe (`download` feature, on by default, pure-Rust TLS). New `typstgen.toml` keys
+  `package_path`, `package_cache_path` and `download_packages`. Native builds only.
+- Tests for citations and `#bibliography` (BibTeX) under PDF/A-2b.
+
 ## [0.3.0] - 2026-09-24
 
 ### Added

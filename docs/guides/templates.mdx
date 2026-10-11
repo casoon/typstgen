@@ -59,6 +59,7 @@ template directories remain fallbacks.
 
 ## Typst packages
 
-Package imports such as `#import "@preview/…"` are not resolved: typstgen has no package cache and
-does not download anything. Vendor the package files into your template directory and import them
-by path instead.
+Package imports such as `#import "@preview/cetz:0.4.2"` are resolved like in the typst CLI, from
+the same package directories. See [Packages and bibliographies](../packages-and-bibliography/). The
+Wasm build has no package directories: vendor the package files into the virtual filesystem and
+import them by path.

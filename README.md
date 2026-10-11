@@ -47,6 +47,10 @@ from `typstgen.toml` (optional; without a config, `./templates` and
 template_paths = ["templates"]
 ```
 
+Package imports (`#import "@preview/…"`, `@local/…`) resolve from the same
+directories as the typst CLI; missing `@preview` packages are downloaded once
+into its cache. Set `download_packages = false` for offline builds.
+
 ```rust
 use typstgen::{compile, Config};
 
