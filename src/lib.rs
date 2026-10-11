@@ -19,8 +19,6 @@
 pub mod config;
 pub mod error;
 pub mod options;
-#[cfg(not(target_arch = "wasm32"))]
-mod packages;
 mod world;
 
 #[cfg(all(feature = "archive", not(target_arch = "wasm32")))]
@@ -95,7 +93,7 @@ pub fn compile_with_options(
     if !input.exists() {
         return Err(Error::InputNotFound(input.to_path_buf()));
     }
-    let world = world::TypstWorld::from_file(input, config, options)?;
+    let world = world::from_file(input, config, options)?;
     compile_world(&world, options)
 }
 
@@ -110,7 +108,7 @@ pub(crate) fn compile_keeping_world(
     if !input.exists() {
         return Err(Error::InputNotFound(input.to_path_buf()));
     }
-    let world = world::TypstWorld::from_file(input, config, options)?;
+    let world = world::from_file(input, config, options)?;
     let output = compile_world(&world, options)?;
     Ok((output, world))
 }
@@ -184,7 +182,7 @@ pub fn render_png(
     if !input.exists() {
         return Err(Error::InputNotFound(input.to_path_buf()));
     }
-    let world = world::TypstWorld::from_file(input, config, options)?;
+    let world = world::from_file(input, config, options)?;
     let (document, _) = compile_document(&world)?;
     let pages = document.pages();
     let selected = page

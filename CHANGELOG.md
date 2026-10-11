@@ -6,6 +6,12 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Changed
+
+- The Typst world (fonts, template roots, packages, `datetime.today()`) now comes from the new
+  [`embedded-typst`](https://crates.io/crates/embedded-typst) crate, shared with renderreport. No
+  change in behaviour.
+
 ## [0.4.0] - 2026-10-11
 
 ### Breaking

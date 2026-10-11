@@ -30,9 +30,9 @@ typst = "0.15"
 typst-pdf = "0.15"
 # The laid-out document type (already a dependency of typst-pdf).
 typst-layout = "0.15"
-# Typst's OFL-licensed fallback fonts, embedded into every build (including
-# wasm, where system fonts are unavailable).
-typst-assets = { version = "0.15", features = ["fonts"] }
+# The Typst world: Typst's bundled fonts (embedded into every build, including
+# wasm), system and configured fonts, template roots and packages.
+embedded-typst = "0.1"
 
 
 # Config file (typstgen.toml) + data
@@ -43,7 +43,7 @@ toml = "1"
 # Error handling
 thiserror = "2.0"
 
-# Dates for `datetime.today()` and the PDF creation timestamp.
+# The PDF creation timestamp.
 chrono = { version = "0.4", default-features = false, features = ["std"] }
 
 # CLI (optional)
@@ -61,25 +61,18 @@ base64 = { version = "0.22", optional = true }
 # Wasm bindings (optional)
 wasm-bindgen = { version = "0.2", optional = true }
 
-# System-font and font-directory scanning (native builds only; wasm uses the
-# embedded fonts from typst-assets).
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-fontdb = "0.24"
-# System clock for `datetime.today()`.
-chrono = { version = "0.4", features = ["clock"] }
 # Package directories (`@local/…`, cached `@preview/…`) at the same locations
-# the typst CLI uses, and unpacking of Typst Universe archives.
-typst-kit = { version = "0.15", default-features = false, features = ["system-packages"] }
+# the typst CLI uses.
+embedded-typst = { version = "0.1", features = ["packages"] }
 # SHA-256 for archive manifests.
 sha2 = { version = "0.10", optional = true }
-# HTTPS client for Typst Universe downloads (pure-Rust TLS, no OpenSSL).
-ureq = { version = "2.12", default-features = false, features = ["tls", "proxy-from-env"], optional = true }
 
 [features]
 default = ["cli", "download", "mcp", "zugferd", "archive"]
 cli = ["dep:clap"]
 # Download missing `@preview` packages from Typst Universe (native only).
-download = ["dep:ureq"]
+download = ["embedded-typst/download"]
 # Render pages as PNG (`render_png`).
 png = ["dep:typst-render"]
 # ZUGFeRD / Factur-X e-invoices (EN 16931) from docgen invoice JSON.

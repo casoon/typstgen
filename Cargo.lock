@@ -635,6 +635,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "252afb9ae5eaa683babdc6a068b3f5726eb19e05070c731f9b2a23a7c3e8ed34"
 
 [[package]]
+name = "embedded-typst"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "771d8404d3b5a18d7b879c469f8b87336c7fd544778ad07982bdea85381b6b44"
+dependencies = [
+ "chrono",
+ "fontdb 0.24.0",
+ "typst",
+ "typst-assets",
+ "typst-kit",
+ "ureq",
+]
+
+[[package]]
 name = "enum-ordinalize"
 version = "4.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3374,7 +3388,7 @@ dependencies = [
  "base64 0.22.1",
  "chrono",
  "clap",
- "fontdb 0.24.0",
+ "embedded-typst",
  "rmcp",
  "schemars",
  "serde",
@@ -3385,12 +3399,9 @@ dependencies = [
  "tokio",
  "toml 1.1.6+spec-1.1.0",
  "typst",
- "typst-assets",
- "typst-kit",
  "typst-layout",
  "typst-pdf",
  "typst-render",
- "ureq",
  "wasm-bindgen",
 ]
 

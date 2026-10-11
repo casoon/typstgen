@@ -158,16 +158,17 @@ fn build(job: &Job, config: &Config) -> Result<Built> {
     }
 
     let (output, world) = crate::compile_keeping_world(&job.input, config, &options)?;
-    for (name, path, bytes) in world.dependencies() {
+    for embedded_typst::Dependency { name, path, data } in world.dependencies() {
         let key = if name.starts_with('@') {
             name
         } else {
             display(&path)
         };
-        files.insert(key, sha256(bytes.as_slice()));
+        files.insert(key, sha256(data.as_slice()));
     }
     let fonts = world
-        .used_font_files()
+        .fonts()
+        .loaded_files()
         .into_iter()
         .map(|(path, bytes)| (display(&path), sha256(bytes.as_slice())))
         .collect();
