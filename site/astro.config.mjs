@@ -12,7 +12,7 @@ export default defineConfig({
       description:
         'Compiles existing .typ files to PDF with an embedded Typst engine: no typst binary, template paths from config. CLI, Rust library and Wasm.',
       repo: 'casoon/typstgen',
-      version: '0.4.0',
+      version: '0.4.1',
       license: 'MIT',
       branch: 'master',
       packages: [
