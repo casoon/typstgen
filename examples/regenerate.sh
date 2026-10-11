@@ -12,6 +12,10 @@ for doc in hello letter fonts; do
   "$bin" compile "$doc.typ" --config typstgen.toml
 done
 
+# The thesis figure is a Chartlet print SVG, committed next to its spec; after
+# changing figures/build-flow.json, render it again with
+#   chartlet render figures/build-flow.json --variant print -o figures/build-flow.svg --strict
+
 # Archival build: PDF/A-2b with a fixed date, so the committed PDF is reproducible.
 "$bin" compile thesis.typ --config typstgen.toml --pdf-standard a-2b \
   --creation-timestamp 1759276800

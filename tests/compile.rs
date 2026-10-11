@@ -551,7 +551,7 @@ fn example_thesis_compiles_as_pdf_a() {
 
     let output = compile_with_options(&examples.join("thesis.typ"), &config, &options)
         .expect("compile the example thesis");
-    assert_eq!(output.pages, 6);
+    assert_eq!(output.pages, 7);
     assert!(output.warnings.is_empty(), "{:?}", output.warnings);
 }
 
