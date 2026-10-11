@@ -6,7 +6,7 @@ use std::collections::BTreeMap;
 use serde::Deserialize;
 use wasm_bindgen::prelude::*;
 
-use crate::{compile_world, world::TypstWorld, CompileOptions};
+use crate::{compile_world, world, CompileOptions};
 
 /// Filesystem-free input for [`compile`]. Each `files` key is a virtual path
 /// used by Typst imports, for example `templates/shared.typ`. The remaining
@@ -63,7 +63,7 @@ pub fn compile(request_json: &str) -> Result<Vec<u8>, JsValue> {
     let options = request
         .options()
         .map_err(|error| JsValue::from_str(&format!("invalid compile request: {error}")))?;
-    let world = TypstWorld::from_virtual(
+    let world = world::from_virtual(
         request.source,
         request
             .files

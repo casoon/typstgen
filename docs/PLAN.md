@@ -129,10 +129,12 @@ die eingebetteten Fallback-Fonts verwendet.
 - ZUGFeRD / Factur-X (EN 16931) aus docgen-Rechnungsdaten.
 - Archiv-Manifeste: `compile --manifest` und `typstgen verify`.
 
-## Phase 3 — Konsolidierung (optional)
+## Phase 3 — Konsolidierung (erledigt)
 
-Extraktion von `embedded-typst` (siehe oben), sobald beide Projekte stabil
-sind und der doppelte Code sichtbar unangenehm wird.
+World und Fonts liegen im eigenen Crate
+[`embedded-typst`](https://github.com/casoon/embedded-typst) (2026-10-11),
+extrahiert aus typstgens World. typstgen und renderreport nutzen es beide;
+renderreport bekommt dadurch das verzögerte Laden von Fonts von der Platte.
 
 ## Bewusst außerhalb des Scopes
 

@@ -32,7 +32,10 @@ management, numbering and `--encrypt` are not carried over.
 
 The architecture follows
 [`renderreport`](https://github.com/casoon/renderreport): embedded Typst,
-feature-gated CLI/Wasm, embedded fonts only on Wasm.
+feature-gated CLI/Wasm, embedded fonts only on Wasm. The Typst world (fonts,
+template roots, packages) lives in
+[`embedded-typst`](https://github.com/casoon/embedded-typst), shared with
+renderreport.
 
 ## Quick start
 
