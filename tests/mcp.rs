@@ -34,7 +34,8 @@ fn mcp_server_checks_previews_and_compiles() {
         json!({"jsonrpc": "2.0", "id": id, "method": "tools/call",
                "params": {"name": name, "arguments": arguments}})
     };
-    let messages = [
+    #[allow(unused_mut)]
+    let mut messages = vec![
         json!({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {
             "protocolVersion": "2025-06-18", "capabilities": {},
             "clientInfo": {"name": "test", "version": "0"}}}),
@@ -58,6 +59,22 @@ fn mcp_server_checks_previews_and_compiles() {
         ),
         call(6, "list_templates", json!({})),
     ];
+    #[cfg(feature = "zugferd")]
+    {
+        let fixtures =
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/zugferd");
+        for name in ["invoice.json", "company.json"] {
+            fs::copy(fixtures.join(name), root.join(name)).expect("copy ZUGFeRD fixture");
+        }
+        messages.push(call(
+            7,
+            "compile",
+            json!({"path": "ok.typ", "inputs": {"who": "A"}, "output": "invoice.pdf",
+            "pdf_standards": ["a-3b"], "creation_timestamp": 1_700_000_000,
+            "zugferd": {"invoice": "invoice.json", "company": "company.json"}}),
+        ));
+    }
+    let expected = messages.len() - 1;
 
     let mut child = Command::new(env!("CARGO_BIN_EXE_typstgen"))
         .args(["mcp", "--root"])
@@ -77,7 +94,7 @@ fn mcp_server_checks_previews_and_compiles() {
         if let Some(id) = response["id"].as_u64() {
             results.insert(id, response["result"].clone());
         }
-        if results.len() == 6 {
+        if results.len() == expected {
             break;
         }
     }
@@ -114,4 +131,11 @@ fn mcp_server_checks_previews_and_compiles() {
     assert!(!temp.path().join("outside.pdf").exists());
 
     assert_eq!(text(6), "title.typ — Title block");
+
+    #[cfg(feature = "zugferd")]
+    {
+        assert!(!is_error(7), "{}", text(7));
+        let pdf = fs::read(root.join("invoice.pdf")).expect("ZUGFeRD pdf");
+        assert!(String::from_utf8_lossy(&pdf).contains("<fx:DocumentFileName>factur-x.xml"));
+    }
 }

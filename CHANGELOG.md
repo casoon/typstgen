@@ -9,7 +9,8 @@ All notable changes to this project are documented in this file. The format is b
 ### Breaking
 
 - `Config` has three new public fields; struct literals need `..Config::default()`.
-- `Output` has a new public field `pages`.
+- `Output` has a new public field `pages`; `CompileOptions` has `zugferd_xml` (with the `zugferd`
+  feature), so struct literals need `..CompileOptions::default()`.
 
 ### Added
 
@@ -19,6 +20,11 @@ All notable changes to this project are documented in this file. The format is b
   default.
 - `render_png` renders one page as PNG (`png` feature) and `Error::PageOutOfRange`.
 - `Output::pages`: the number of pages of the compiled document.
+- ZUGFeRD / Factur-X e-invoices (EN 16931, `zugferd` feature, on by default): `--zugferd
+  invoice.json --company company.json` builds the CII XML from docgen invoice data, checks it, embeds
+  it as `factur-x.xml` in a PDF/A-3 and adds the Factur-X XMP schema. Library:
+  `zugferd::xml_from_docgen`, `CompileOptions::zugferd_xml`, `Error::Zugferd`. MCP: `zugferd`
+  parameter of `compile`.
 - Example `examples/thesis.typ`: a seminar paper built on a local package
   (`examples/packages/local/thesis/0.1.0`) with BibTeX citations, compiled as PDF/A-2b.
 - Typst packages: `#import "@preview/…"` and `@local/…` resolve from the same package data and

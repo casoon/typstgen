@@ -53,6 +53,10 @@ Package imports (`#import "@preview/…"`, `@local/…`) resolve from the same
 directories as the typst CLI; missing `@preview` packages are downloaded once
 into its cache. Set `download_packages = false` for offline builds.
 
+ZUGFeRD / Factur-X e-invoices (EN 16931): `--zugferd invoice.json --company
+company.json --pdf-standard a-3b` embeds the invoice data as `factur-x.xml`,
+built from the same docgen JSON the invoice template renders.
+
 ```rust
 use typstgen::{compile, Config};
 

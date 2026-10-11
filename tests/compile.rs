@@ -554,3 +554,90 @@ fn example_thesis_compiles_as_pdf_a() {
     assert_eq!(output.pages, 7);
     assert!(output.warnings.is_empty(), "{:?}", output.warnings);
 }
+
+#[cfg(feature = "zugferd")]
+mod zugferd {
+    use super::*;
+
+    fn fixture(name: &str) -> String {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures/zugferd")
+            .join(name);
+        fs::read_to_string(path).expect("read fixture")
+    }
+
+    #[test]
+    fn writes_cii_for_the_en16931_profile() {
+        let xml =
+            typstgen::zugferd::xml_from_docgen(&fixture("invoice.json"), &fixture("company.json"))
+                .expect("valid invoice");
+        for expected in [
+            "<ram:ID>urn:cen.eu:en16931:2017</ram:ID>",
+            "<ram:BilledQuantity unitCode=\"DAY\">2.5</ram:BilledQuantity>",
+            "<ram:BilledQuantity unitCode=\"H87\">1</ram:BilledQuantity>",
+            "<ram:ID schemeID=\"VA\">DE123456789</ram:ID>",
+            "<ram:IBANID>DE89370400440532013000</ram:IBANID>",
+            "<ram:CalculatedAmount>456.00</ram:CalculatedAmount>",
+            "<ram:CalculatedAmount>2.79</ram:CalculatedAmount>",
+            "<udt:DateTimeString format=\"102\">20260930</udt:DateTimeString>",
+            "<ram:GrandTotalAmount>2898.69</ram:GrandTotalAmount>",
+        ] {
+            assert!(xml.contains(expected), "missing {expected} in\n{xml}");
+        }
+        // Billing period from "09/2026".
+        assert!(xml.contains("20260901") && xml.contains("20260930"));
+    }
+
+    #[test]
+    fn reports_every_problem_in_the_data() {
+        let invoice = fixture("invoice.json")
+            .replace("\"unit\": \"Stk\"", "\"unit\": \"Kisten\"")
+            .replace("\"amount\": \"2898.69\"", "\"amount\": \"3000\"");
+        let company = fixture("company.json").replace("\"vat_id\": \"DE123456789\",", "");
+        let Err(Error::Zugferd(message)) = typstgen::zugferd::xml_from_docgen(&invoice, &company)
+        else {
+            panic!("expected ZUGFeRD problems");
+        };
+        assert!(message.contains("vat_id or company.tax_id"), "{message}");
+        assert!(message.contains("unit \"Kisten\""), "{message}");
+        assert!(message.contains("totals.total is 3000.00"), "{message}");
+    }
+
+    #[test]
+    fn embeds_the_invoice_into_a_pdf_a3() {
+        let temp = tempdir().expect("create temporary project");
+        let input = temp.path().join("invoice.typ");
+        fs::write(
+            &input,
+            "#set document(title: \"Rechnung\")\n= Rechnung RE-2026-001",
+        )
+        .expect("write input");
+        let xml =
+            typstgen::zugferd::xml_from_docgen(&fixture("invoice.json"), &fixture("company.json"))
+                .expect("valid invoice");
+        let options = CompileOptions {
+            pdf_standards: vec![PdfStandard::A3b],
+            creation_timestamp: Some(1_790_000_000),
+            zugferd_xml: Some(xml.into_bytes()),
+            ..CompileOptions::default()
+        };
+        let pdf = compile_with_options(&input, &config_with(vec![]), &options)
+            .expect("compile ZUGFeRD invoice")
+            .pdf;
+        let text = String::from_utf8_lossy(&pdf);
+        assert!(text.contains("/F(factur-x.xml)"), "attachment name");
+        assert!(text.contains("/AFRelationship/Alternative"));
+        assert!(text.contains("<fx:ConformanceLevel>EN 16931</fx:ConformanceLevel>"));
+        assert!(text.contains("Factur-X PDFA Extension Schema"));
+        // The update points back to Typst's own cross-reference table.
+        assert!(text.trim_end().ends_with("%%EOF") && text.matches("/Prev ").count() == 1);
+
+        let plain = CompileOptions {
+            pdf_standards: vec![PdfStandard::A2b],
+            ..options
+        };
+        let error =
+            compile_with_options(&input, &config_with(vec![]), &plain).expect_err("needs PDF/A-3");
+        assert!(error.to_string().contains("PDF/A-3"), "{error}");
+    }
+}

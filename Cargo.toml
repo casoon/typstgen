@@ -74,12 +74,14 @@ typst-kit = { version = "0.15", default-features = false, features = ["system-pa
 ureq = { version = "2.12", default-features = false, features = ["tls", "proxy-from-env"], optional = true }
 
 [features]
-default = ["cli", "download", "mcp"]
+default = ["cli", "download", "mcp", "zugferd"]
 cli = ["dep:clap"]
 # Download missing `@preview` packages from Typst Universe (native only).
 download = ["dep:ureq"]
 # Render pages as PNG (`render_png`).
 png = ["dep:typst-render"]
+# ZUGFeRD / Factur-X e-invoices (EN 16931) from docgen invoice JSON.
+zugferd = []
 # `typstgen mcp`: an MCP server over stdio for AI agents.
 mcp = ["cli", "png", "dep:rmcp", "dep:schemars", "dep:tokio", "dep:base64"]
 wasm = ["dep:wasm-bindgen"]
