@@ -23,6 +23,8 @@ pub mod options;
 mod packages;
 mod world;
 
+#[cfg(all(feature = "archive", not(target_arch = "wasm32")))]
+pub mod archive;
 #[cfg(feature = "mcp")]
 pub mod mcp;
 #[cfg(feature = "wasm")]
@@ -95,6 +97,22 @@ pub fn compile_with_options(
     }
     let world = world::TypstWorld::from_file(input, config, options)?;
     compile_world(&world, options)
+}
+
+/// Like [`compile_with_options`], also returning the world to inspect which
+/// files and fonts were read.
+#[cfg(all(feature = "archive", not(target_arch = "wasm32")))]
+pub(crate) fn compile_keeping_world(
+    input: &Path,
+    config: &Config,
+    options: &CompileOptions,
+) -> Result<(Output, world::TypstWorld)> {
+    if !input.exists() {
+        return Err(Error::InputNotFound(input.to_path_buf()));
+    }
+    let world = world::TypstWorld::from_file(input, config, options)?;
+    let output = compile_world(&world, options)?;
+    Ok((output, world))
 }
 
 fn compile_world(world: &world::TypstWorld, options: &CompileOptions) -> Result<Output> {

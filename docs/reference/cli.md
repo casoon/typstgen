@@ -15,6 +15,7 @@ Usage: typstgen <COMMAND>
 
 Commands:
   compile  Compile a single .typ file to PDF
+  verify   Check the PDFs recorded in a manifest: unchanged, same sources, identical rebuild
   mcp      Serve the Model Context Protocol on stdin/stdout for AI agents
   help     Print this message or the help of the given subcommand(s)
 
@@ -62,6 +63,7 @@ Options:
 | `--creation-timestamp` | Unix seconds for the PDF creation date and `datetime.today()`. Falls back to `SOURCE_DATE_EPOCH`. |
 | `--pages` | Pages to export, for example `1-3,5,8-`. Produces an untagged PDF. |
 | `--no-pdf-tags` | Write an untagged PDF. |
+| `--manifest` | Record the build in a manifest (e.g. `archive.json`) for `typstgen verify`. Not with `--pages`. See [Archiving](../../guides/archiving/). |
 | `--zugferd`, `--company` | Embed a ZUGFeRD e-invoice built from a docgen invoice JSON and company.json; needs a PDF/A-3 standard. See [E-invoices](../../guides/e-invoices/). |
 
 The last five options are explained in [Inputs and PDF options](../../guides/inputs-and-pdf/).
@@ -99,3 +101,17 @@ Options:
 ```
 
 Runs until the client closes stdin. The tools are described in [AI agents](../../guides/ai-agents/).
+
+## typstgen verify
+
+```text
+Check the PDFs recorded in a manifest: unchanged, same sources, identical rebuild
+
+Usage: typstgen verify [MANIFEST]
+
+Arguments:
+  [MANIFEST]  The manifest written by `compile --manifest` [default: archive.json]
+```
+
+Prints one line per document (`ok` or `FAILED` with the reasons) and exits with code `1` if any
+document fails. Described in [Archiving](../../guides/archiving/).

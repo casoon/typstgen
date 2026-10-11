@@ -641,3 +641,82 @@ mod zugferd {
         assert!(error.to_string().contains("PDF/A-3"), "{error}");
     }
 }
+
+#[cfg(feature = "archive")]
+mod archive {
+    use super::*;
+    use typstgen::archive::{compile_and_record, verify, Job};
+
+    fn job(dir: &std::path::Path) -> Job {
+        Job {
+            input: dir.join("letter.typ"),
+            output: dir.join("letter.pdf"),
+            config: None,
+            inputs: [("to".to_owned(), "Ada".to_owned())].into(),
+            pdf_standards: vec![PdfStandard::A2b],
+            creation_timestamp: Some(1_790_000_000),
+            pdf_tags: true,
+            zugferd: None,
+        }
+    }
+
+    #[test]
+    fn records_and_verifies_a_build() {
+        let temp = tempdir().expect("create temporary project");
+        let dir = temp.path();
+        fs::write(dir.join("part.typ"), "#let greeting = [Hello]").expect("write import");
+        fs::write(
+            dir.join("letter.typ"),
+            "#import \"part.typ\": greeting\n#greeting #sys.inputs.to",
+        )
+        .expect("write input");
+        let manifest = dir.join("archive.json");
+        let config = config_with(vec![]);
+
+        compile_and_record(&manifest, &job(dir), &config).expect("record build");
+        let recorded: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(&manifest).expect("read manifest"))
+                .expect("manifest is JSON");
+        let entry = &recorded["documents"][dir
+            .join("letter.pdf")
+            .canonicalize()
+            .unwrap()
+            .display()
+            .to_string()];
+        assert_eq!(
+            entry["files"].as_object().map(|files| files.len()),
+            Some(2),
+            "{recorded}"
+        );
+        assert_eq!(entry["inputs"]["to"], "Ada");
+
+        let reports = verify(&manifest).expect("verify");
+        assert!(
+            reports.iter().all(|report| report.problems.is_empty()),
+            "{reports:?}"
+        );
+
+        // A changed import and a changed PDF are both reported.
+        fs::write(dir.join("part.typ"), "#let greeting = [Hi]").expect("change import");
+        fs::write(dir.join("letter.pdf"), b"%PDF-tampered").expect("change pdf");
+        let problems = &verify(&manifest).expect("verify")[0].problems;
+        assert!(
+            problems
+                .iter()
+                .any(|p| p.starts_with("changed:") && p.ends_with("part.typ")),
+            "{problems:?}"
+        );
+        assert!(
+            problems
+                .iter()
+                .any(|p| p == "the PDF differs from the recorded one"),
+            "{problems:?}"
+        );
+        assert!(
+            problems
+                .iter()
+                .any(|p| p == "the rebuild differs from the recorded PDF"),
+            "{problems:?}"
+        );
+    }
+}

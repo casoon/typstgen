@@ -43,6 +43,11 @@ pub enum Error {
     #[error("ZUGFeRD invoice:\n{0}")]
     Zugferd(String),
 
+    /// An archive manifest cannot be read or written.
+    #[cfg(all(feature = "archive", not(target_arch = "wasm32")))]
+    #[error("archive manifest: {0}")]
+    Archive(String),
+
     /// Any other I/O error, for example while reading the input.
     #[error(transparent)]
     Io(#[from] std::io::Error),

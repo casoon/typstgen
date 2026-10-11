@@ -57,6 +57,10 @@ ZUGFeRD / Factur-X e-invoices (EN 16931): `--zugferd invoice.json --company
 company.json --pdf-standard a-3b` embeds the invoice data as `factur-x.xml`,
 built from the same docgen JSON the invoice template renders.
 
+Archiving: `--manifest archive.json` records each build (options, SHA-256 of
+the PDF and of every file read); `typstgen verify` proves later that nothing
+changed and that every PDF rebuilds byte for byte.
+
 ```rust
 use typstgen::{compile, Config};
 
