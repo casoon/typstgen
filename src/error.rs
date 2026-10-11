@@ -28,6 +28,15 @@ pub enum Error {
     #[error("typst compilation failed:\n{0}")]
     Compile(String),
 
+    /// A page was requested that the document does not have.
+    #[error("page {page} does not exist (the document has {pages} page(s))")]
+    PageOutOfRange {
+        /// The requested 1-based page.
+        page: usize,
+        /// The number of pages in the document.
+        pages: usize,
+    },
+
     /// Any other I/O error, for example while reading the input.
     #[error(transparent)]
     Io(#[from] std::io::Error),

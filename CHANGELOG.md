@@ -9,9 +9,16 @@ All notable changes to this project are documented in this file. The format is b
 ### Breaking
 
 - `Config` has three new public fields; struct literals need `..Config::default()`.
+- `Output` has a new public field `pages`.
 
 ### Added
 
+- `typstgen mcp`: a Model Context Protocol server over stdio with the tools `check`, `preview`,
+  `compile` and `list_templates`, restricted to a workspace directory (`--root`). Errors are
+  returned to the agent as `path:line:column` lines so it can fix them itself. `mcp` feature, on by
+  default.
+- `render_png` renders one page as PNG (`png` feature) and `Error::PageOutOfRange`.
+- `Output::pages`: the number of pages of the compiled document.
 - Typst packages: `#import "@preview/…"` and `@local/…` resolve from the same package data and
   cache directories as the typst CLI. Missing `@preview` packages are downloaded from Typst
   Universe (`download` feature, on by default, pure-Rust TLS). New `typstgen.toml` keys

@@ -1,6 +1,6 @@
 ---
 title: CLI
-description: The typstgen command, its one subcommand, and how it reports success and failure.
+description: The typstgen command, its subcommands, and how they report success and failure.
 order: 1
 ---
 
@@ -15,6 +15,7 @@ Usage: typstgen <COMMAND>
 
 Commands:
   compile  Compile a single .typ file to PDF
+  mcp      Serve the Model Context Protocol on stdin/stdout for AI agents
   help     Print this message or the help of the given subcommand(s)
 
 Options:
@@ -82,3 +83,18 @@ missing-import.typ:2:9: error: file not found (searched at /footer.typ)
 
 This exact output is the `missing-import` example in the [showcase](../../../showcase/missing-import/).
 On success, warnings go to stderr in the same `path:line:column: warning: …` form.
+
+## typstgen mcp
+
+```text
+Serve the Model Context Protocol on stdin/stdout for AI agents
+
+Usage: typstgen mcp [OPTIONS]
+
+Options:
+      --root <ROOT>      Workspace directory; tools only read and write inside it (default: current directory)
+  -c, --config <CONFIG>  Path to typstgen.toml (defaults to ./typstgen.toml in the workspace)
+  -h, --help             Print help
+```
+
+Runs until the client closes stdin. The tools are described in [AI agents](../../guides/ai-agents/).

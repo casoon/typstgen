@@ -28,6 +28,8 @@ required-features = ["cli"]
 # Typst as embedded library — no CLI/subprocess dependency
 typst = "0.15"
 typst-pdf = "0.15"
+# The laid-out document type (already a dependency of typst-pdf).
+typst-layout = "0.15"
 # Typst's OFL-licensed fallback fonts, embedded into every build (including
 # wasm, where system fonts are unavailable).
 typst-assets = { version = "0.15", features = ["fonts"] }
@@ -47,6 +49,15 @@ chrono = { version = "0.4", default-features = false, features = ["std"] }
 # CLI (optional)
 clap = { version = "4.5", features = ["derive", "env"], optional = true }
 
+# PNG page previews (optional)
+typst-render = { version = "0.15", optional = true }
+
+# MCP server (optional)
+rmcp = { version = "2.0", default-features = false, features = ["server", "macros", "schemars", "transport-io"], optional = true }
+schemars = { version = "1", optional = true }
+tokio = { version = "1", features = ["rt", "macros", "io-std"], optional = true }
+base64 = { version = "0.22", optional = true }
+
 # Wasm bindings (optional)
 wasm-bindgen = { version = "0.2", optional = true }
 
@@ -63,10 +74,14 @@ typst-kit = { version = "0.15", default-features = false, features = ["system-pa
 ureq = { version = "2.12", default-features = false, features = ["tls", "proxy-from-env"], optional = true }
 
 [features]
-default = ["cli", "download"]
+default = ["cli", "download", "mcp"]
 cli = ["dep:clap"]
 # Download missing `@preview` packages from Typst Universe (native only).
 download = ["dep:ureq"]
+# Render pages as PNG (`render_png`).
+png = ["dep:typst-render"]
+# `typstgen mcp`: an MCP server over stdio for AI agents.
+mcp = ["cli", "png", "dep:rmcp", "dep:schemars", "dep:tokio", "dep:base64"]
 wasm = ["dep:wasm-bindgen"]
 
 [dev-dependencies]

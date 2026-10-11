@@ -10,11 +10,13 @@ config-driven instead of hardcoded.
 your-document.typ  +  typstgen.toml (template_paths)  →  your-document.pdf
 ```
 
-Usable three ways from one crate:
+Usable four ways from one crate:
 
 - **CLI** (`cli` feature, default): `typstgen compile input.typ`
 - **Rust library** (always available): `typstgen::compile(path, &config)`
 - **Wasm** (`wasm` feature): source and imports supplied as a JSON virtual filesystem
+- **MCP server** (`mcp` feature, default): `typstgen mcp` lets AI agents check,
+  preview and compile documents — `claude mcp add typstgen -- typstgen mcp --root .`
 
 ## Why
 

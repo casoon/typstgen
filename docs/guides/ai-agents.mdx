@@ -1,0 +1,58 @@
+---
+title: AI agents (MCP)
+description: Let Claude Code or another MCP client check, preview and compile Typst documents through typstgen's built-in MCP server.
+order: 5
+---
+
+`typstgen mcp` starts a [Model Context Protocol](https://modelcontextprotocol.io) server on
+stdin/stdout. An agent that writes Typst can then compile its own output, read the errors, look at
+the result and fix it, without a `typst` binary on the machine.
+
+## Set up
+
+Claude Code, for the current project:
+
+```sh
+claude mcp add typstgen -- typstgen mcp --root .
+```
+
+Any other client that starts stdio servers uses the same command, for example in a `.mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "typstgen": { "command": "typstgen", "args": ["mcp", "--root", "."] }
+  }
+}
+```
+
+`--root` is the workspace. It becomes the working directory, so `typstgen.toml` and its relative
+paths are read from there (or pass `--config`). Every path a tool receives is relative to the
+workspace, and no tool reads or writes a file outside it; imports from template directories and
+packages resolve as with `typstgen compile`.
+
+## Tools
+
+| Tool | Arguments | Returns |
+| --- | --- | --- |
+| `check` | `path`, `inputs`, `creation_timestamp` | `ok, N pages` and warnings, or every error as `path:line:column: error: …` with hints. Writes nothing. |
+| `preview` | `path`, `page` (default 1), `scale` (pixels per point, default 1.5), `inputs`, `creation_timestamp` | One page as a PNG image. |
+| `compile` | `path`, `output`, `pdf_standards` (e.g. `["a-2b"]`), `inputs`, `creation_timestamp` | `wrote <file> (<bytes> bytes), N pages` and warnings. |
+| `list_templates` | – | Every `.typ` file in the template directories, with its first `//` comment as description. |
+
+Errors are tool results, not protocol errors, so the agent sees them and can react:
+
+```text
+typst compilation failed:
+bad.typ:2:2: error: unknown variable: unbekannt
+```
+
+## A typical loop
+
+1. The agent writes `angebot.typ`, importing a template it found with `list_templates`.
+2. `check` reports an error with file, line and column; the agent fixes it and checks again.
+3. `preview` shows page 1, so layout problems (overflowing tables, wrong page breaks) are visible.
+4. `compile` with `pdf_standards: ["a-2b"]` and a `creation_timestamp` writes the archivable PDF.
+
+Give templates a first-line comment such as `// Offer with price table and terms` so the agent can
+pick the right one from `list_templates`.

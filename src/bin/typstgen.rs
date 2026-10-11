@@ -46,6 +46,16 @@ enum Commands {
         #[arg(long)]
         no_pdf_tags: bool,
     },
+    /// Serve the Model Context Protocol on stdin/stdout for AI agents
+    #[cfg(feature = "mcp")]
+    Mcp {
+        /// Workspace directory; tools only read and write inside it (default: current directory)
+        #[arg(long)]
+        root: Option<PathBuf>,
+        /// Path to typstgen.toml (defaults to ./typstgen.toml in the workspace)
+        #[arg(short, long)]
+        config: Option<PathBuf>,
+    },
 }
 
 fn main() -> ExitCode {
@@ -96,7 +106,35 @@ fn main() -> ExitCode {
                 }
             }
         }
+        #[cfg(feature = "mcp")]
+        Commands::Mcp { root, config } => match serve_mcp(root, config) {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(err) => {
+                eprintln!("error: {err}");
+                ExitCode::FAILURE
+            }
+        },
     }
+}
+
+#[cfg(feature = "mcp")]
+fn serve_mcp(root: Option<PathBuf>, config: Option<PathBuf>) -> Result<(), String> {
+    // Config paths are relative to the working directory, so the workspace
+    // becomes the working directory before the config is read.
+    let config = config
+        .map(|path| {
+            path.canonicalize()
+                .map_err(|err| format!("{}: {err}", path.display()))
+        })
+        .transpose()?;
+    if let Some(root) = &root {
+        std::env::set_current_dir(root).map_err(|err| format!("{}: {err}", root.display()))?;
+    }
+    let root = std::env::current_dir()
+        .and_then(|dir| dir.canonicalize())
+        .map_err(|err| err.to_string())?;
+    let config = Config::load(config.as_deref()).map_err(|err| err.to_string())?;
+    typstgen::mcp::serve(root, config).map_err(|err| err.to_string())
 }
 
 fn parse_input(raw: &str) -> Result<(String, String), String> {
