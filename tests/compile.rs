@@ -29,6 +29,7 @@ fn compiles_a_document_with_an_import_from_the_template_root() {
         template_paths: vec![template_root],
         font_paths: vec![],
         use_system_fonts: false,
+        ..Config::default()
     };
     let pdf = compile(&input, &config).expect("compile Typst document");
 
@@ -74,6 +75,7 @@ fn config_with(template_paths: Vec<std::path::PathBuf>) -> Config {
         template_paths,
         font_paths: vec![],
         use_system_fonts: false,
+        ..Config::default()
     }
 }
 
@@ -420,4 +422,301 @@ fn cli_reads_source_date_epoch() {
         .status()
         .expect("run typstgen CLI");
     assert!(status.success());
+}
+
+/// A config that only sees the packages in `dir` and never downloads.
+fn offline_packages(dir: &std::path::Path) -> Config {
+    Config {
+        package_path: Some(dir.join("data")),
+        package_cache_path: Some(dir.join("cache")),
+        download_packages: false,
+        ..config_with(vec![])
+    }
+}
+
+#[test]
+fn resolves_packages_from_the_package_directories() {
+    let temp = tempdir().expect("create temporary project");
+    for (dir, namespace, text) in [("data", "local", "Local"), ("cache", "preview", "Cached")] {
+        let package = temp.path().join(format!("{dir}/{namespace}/greet/0.1.0"));
+        fs::create_dir_all(package.join("src")).expect("create package directory");
+        fs::write(
+            package.join("typst.toml"),
+            "[package]\nname = \"greet\"\nversion = \"0.1.0\"\nentrypoint = \"src/lib.typ\"\n",
+        )
+        .expect("write package manifest");
+        fs::write(
+            package.join("src/lib.typ"),
+            format!("#import \"text.typ\": word\n#let greet() = [{text} #word]"),
+        )
+        .expect("write package entrypoint");
+        fs::write(package.join("src/text.typ"), "#let word = [package]")
+            .expect("write package module");
+    }
+
+    let input = temp.path().join("document.typ");
+    fs::write(
+        &input,
+        "#import \"@local/greet:0.1.0\" as local\n#import \"@preview/greet:0.1.0\" as cached\n#local.greet() #cached.greet()",
+    )
+    .expect("write input");
+
+    let pdf = compile(&input, &offline_packages(temp.path())).expect("compile with packages");
+    assert!(pdf.starts_with(b"%PDF-"));
+}
+
+#[test]
+fn reports_a_missing_package_without_downloading() {
+    let temp = tempdir().expect("create temporary project");
+    let input = temp.path().join("document.typ");
+    fs::write(&input, "#import \"@preview/does-not-exist:0.1.0\": *").expect("write input");
+
+    let error = compile(&input, &offline_packages(temp.path())).expect_err("package is missing");
+    let Error::Compile(message) = error else {
+        panic!("expected a compile error, got {error:?}");
+    };
+    assert!(message.contains("package not found"), "{message}");
+}
+
+#[test]
+fn compiles_citations_and_a_bibliography() {
+    let temp = tempdir().expect("create temporary project");
+    fs::write(
+        temp.path().join("refs.bib"),
+        "@book{knuth1984, author = {Donald E. Knuth}, title = {The TeXbook}, publisher = {Addison-Wesley}, year = {1984}}",
+    )
+    .expect("write bibliography");
+    let input = temp.path().join("paper.typ");
+    fs::write(
+        &input,
+        "#set document(date: datetime(year: 2026, month: 1, day: 1))\nSee @knuth1984.\n#bibliography(\"refs.bib\", style: \"ieee\")",
+    )
+    .expect("write input");
+
+    let options = CompileOptions {
+        pdf_standards: vec![PdfStandard::A2b],
+        ..CompileOptions::default()
+    };
+    let output = compile_with_options(&input, &config_with(vec![]), &options)
+        .expect("compile citations as PDF/A-2b");
+    assert!(output.pdf.starts_with(b"%PDF-"));
+    assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+}
+
+#[test]
+fn output_reports_the_page_count() {
+    let temp = tempdir().expect("create temporary project");
+    let input = temp.path().join("document.typ");
+    fs::write(&input, "One\n#pagebreak()\nTwo\n#pagebreak()\nThree").expect("write input");
+
+    let output = compile_with_warnings(&input, &config_with(vec![])).expect("compile");
+    assert_eq!(output.pages, 3);
+}
+
+#[cfg(feature = "png")]
+#[test]
+fn renders_a_page_as_png() {
+    let temp = tempdir().expect("create temporary project");
+    let input = temp.path().join("document.typ");
+    fs::write(&input, "#set page(width: 100pt, height: 50pt)\nHi").expect("write input");
+    let config = config_with(vec![]);
+    let options = CompileOptions::default();
+
+    let png = typstgen::render_png(&input, &config, &options, 1, 2.0).expect("render page 1");
+    assert!(png.starts_with(b"\x89PNG"));
+    // 100pt x 50pt at 2 px/pt.
+    assert_eq!(&png[16..24], &[0, 0, 0, 200, 0, 0, 0, 100]);
+
+    let error = typstgen::render_png(&input, &config, &options, 2, 2.0).expect_err("no page 2");
+    assert!(
+        matches!(error, Error::PageOutOfRange { page: 2, pages: 1 }),
+        "{error:?}"
+    );
+}
+
+#[test]
+fn example_thesis_compiles_as_pdf_a() {
+    let examples = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("examples");
+    let config = Config {
+        template_paths: vec![examples.join("templates")],
+        package_path: Some(examples.join("packages")),
+        download_packages: false,
+        ..config_with(vec![])
+    };
+    let options = CompileOptions {
+        pdf_standards: vec![PdfStandard::A2b],
+        creation_timestamp: Some(1_759_276_800),
+        ..CompileOptions::default()
+    };
+
+    let output = compile_with_options(&examples.join("thesis.typ"), &config, &options)
+        .expect("compile the example thesis");
+    assert_eq!(output.pages, 7);
+    assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+}
+
+#[cfg(feature = "zugferd")]
+mod zugferd {
+    use super::*;
+
+    fn fixture(name: &str) -> String {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures/zugferd")
+            .join(name);
+        fs::read_to_string(path).expect("read fixture")
+    }
+
+    #[test]
+    fn writes_cii_for_the_en16931_profile() {
+        let xml =
+            typstgen::zugferd::xml_from_docgen(&fixture("invoice.json"), &fixture("company.json"))
+                .expect("valid invoice");
+        for expected in [
+            "<ram:ID>urn:cen.eu:en16931:2017</ram:ID>",
+            "<ram:BilledQuantity unitCode=\"DAY\">2.5</ram:BilledQuantity>",
+            "<ram:BilledQuantity unitCode=\"H87\">1</ram:BilledQuantity>",
+            "<ram:ID schemeID=\"VA\">DE123456789</ram:ID>",
+            "<ram:IBANID>DE89370400440532013000</ram:IBANID>",
+            "<ram:CalculatedAmount>456.00</ram:CalculatedAmount>",
+            "<ram:CalculatedAmount>2.79</ram:CalculatedAmount>",
+            "<udt:DateTimeString format=\"102\">20260930</udt:DateTimeString>",
+            "<ram:GrandTotalAmount>2898.69</ram:GrandTotalAmount>",
+        ] {
+            assert!(xml.contains(expected), "missing {expected} in\n{xml}");
+        }
+        // Billing period from "09/2026".
+        assert!(xml.contains("20260901") && xml.contains("20260930"));
+    }
+
+    #[test]
+    fn reports_every_problem_in_the_data() {
+        let invoice = fixture("invoice.json")
+            .replace("\"unit\": \"Stk\"", "\"unit\": \"Kisten\"")
+            .replace("\"amount\": \"2898.69\"", "\"amount\": \"3000\"");
+        let company = fixture("company.json").replace("\"vat_id\": \"DE123456789\",", "");
+        let Err(Error::Zugferd(message)) = typstgen::zugferd::xml_from_docgen(&invoice, &company)
+        else {
+            panic!("expected ZUGFeRD problems");
+        };
+        assert!(message.contains("vat_id or company.tax_id"), "{message}");
+        assert!(message.contains("unit \"Kisten\""), "{message}");
+        assert!(message.contains("totals.total is 3000.00"), "{message}");
+    }
+
+    #[test]
+    fn embeds_the_invoice_into_a_pdf_a3() {
+        let temp = tempdir().expect("create temporary project");
+        let input = temp.path().join("invoice.typ");
+        fs::write(
+            &input,
+            "#set document(title: \"Rechnung\")\n= Rechnung RE-2026-001",
+        )
+        .expect("write input");
+        let xml =
+            typstgen::zugferd::xml_from_docgen(&fixture("invoice.json"), &fixture("company.json"))
+                .expect("valid invoice");
+        let options = CompileOptions {
+            pdf_standards: vec![PdfStandard::A3b],
+            creation_timestamp: Some(1_790_000_000),
+            zugferd_xml: Some(xml.into_bytes()),
+            ..CompileOptions::default()
+        };
+        let pdf = compile_with_options(&input, &config_with(vec![]), &options)
+            .expect("compile ZUGFeRD invoice")
+            .pdf;
+        let text = String::from_utf8_lossy(&pdf);
+        assert!(text.contains("/F(factur-x.xml)"), "attachment name");
+        assert!(text.contains("/AFRelationship/Alternative"));
+        assert!(text.contains("<fx:ConformanceLevel>EN 16931</fx:ConformanceLevel>"));
+        assert!(text.contains("Factur-X PDFA Extension Schema"));
+        // The update points back to Typst's own cross-reference table.
+        assert!(text.trim_end().ends_with("%%EOF") && text.matches("/Prev ").count() == 1);
+
+        let plain = CompileOptions {
+            pdf_standards: vec![PdfStandard::A2b],
+            ..options
+        };
+        let error =
+            compile_with_options(&input, &config_with(vec![]), &plain).expect_err("needs PDF/A-3");
+        assert!(error.to_string().contains("PDF/A-3"), "{error}");
+    }
+}
+
+#[cfg(feature = "archive")]
+mod archive {
+    use super::*;
+    use typstgen::archive::{compile_and_record, verify, Job};
+
+    fn job(dir: &std::path::Path) -> Job {
+        Job {
+            input: dir.join("letter.typ"),
+            output: dir.join("letter.pdf"),
+            config: None,
+            inputs: [("to".to_owned(), "Ada".to_owned())].into(),
+            pdf_standards: vec![PdfStandard::A2b],
+            creation_timestamp: Some(1_790_000_000),
+            pdf_tags: true,
+            zugferd: None,
+        }
+    }
+
+    #[test]
+    fn records_and_verifies_a_build() {
+        let temp = tempdir().expect("create temporary project");
+        let dir = temp.path();
+        fs::write(dir.join("part.typ"), "#let greeting = [Hello]").expect("write import");
+        fs::write(
+            dir.join("letter.typ"),
+            "#import \"part.typ\": greeting\n#greeting #sys.inputs.to",
+        )
+        .expect("write input");
+        let manifest = dir.join("archive.json");
+        let config = config_with(vec![]);
+
+        compile_and_record(&manifest, &job(dir), &config).expect("record build");
+        let recorded: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(&manifest).expect("read manifest"))
+                .expect("manifest is JSON");
+        let entry = &recorded["documents"][dir
+            .join("letter.pdf")
+            .canonicalize()
+            .unwrap()
+            .display()
+            .to_string()];
+        assert_eq!(
+            entry["files"].as_object().map(|files| files.len()),
+            Some(2),
+            "{recorded}"
+        );
+        assert_eq!(entry["inputs"]["to"], "Ada");
+
+        let reports = verify(&manifest, false).expect("verify");
+        assert!(
+            reports.iter().all(|report| report.problems.is_empty()),
+            "{reports:?}"
+        );
+
+        // A changed import and a changed PDF are both reported.
+        fs::write(dir.join("part.typ"), "#let greeting = [Hi]").expect("change import");
+        fs::write(dir.join("letter.pdf"), b"%PDF-tampered").expect("change pdf");
+        let problems = &verify(&manifest, false).expect("verify")[0].problems;
+        assert!(
+            problems
+                .iter()
+                .any(|p| p.starts_with("changed:") && p.ends_with("part.typ")),
+            "{problems:?}"
+        );
+        assert!(
+            problems
+                .iter()
+                .any(|p| p == "the PDF differs from the recorded one"),
+            "{problems:?}"
+        );
+        assert!(
+            problems
+                .iter()
+                .any(|p| p == "the rebuild differs from the recorded PDF"),
+            "{problems:?}"
+        );
+    }
 }

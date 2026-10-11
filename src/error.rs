@@ -28,6 +28,26 @@ pub enum Error {
     #[error("typst compilation failed:\n{0}")]
     Compile(String),
 
+    /// A page was requested that the document does not have.
+    #[error("page {page} does not exist (the document has {pages} page(s))")]
+    PageOutOfRange {
+        /// The requested 1-based page.
+        page: usize,
+        /// The number of pages in the document.
+        pages: usize,
+    },
+
+    /// The ZUGFeRD invoice data is incomplete or inconsistent, or the PDF
+    /// could not be completed. One problem per line.
+    #[cfg(feature = "zugferd")]
+    #[error("ZUGFeRD invoice:\n{0}")]
+    Zugferd(String),
+
+    /// An archive manifest cannot be read or written.
+    #[cfg(all(feature = "archive", not(target_arch = "wasm32")))]
+    #[error("archive manifest: {0}")]
+    Archive(String),
+
     /// Any other I/O error, for example while reading the input.
     #[error(transparent)]
     Io(#[from] std::io::Error),

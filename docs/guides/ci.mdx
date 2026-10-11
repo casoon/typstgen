@@ -1,0 +1,85 @@
+---
+title: Checks and CI
+description: Verify an archive of Typst documents locally before every push and in CI on release tags, with fonts and packages pinned in the repository so a rebuild is identical on any machine.
+order: 8
+---
+
+A document repository (invoices, contracts, reports) keeps sources, data and the manifest from
+[Archiving](../archiving/) in Git; the PDFs live in the archive storage. Two checks keep it honest:
+
+| Where | Command | Checks |
+| --- | --- | --- |
+| Locally, before every push | `typstgen verify` | stored PDFs unchanged, sources unchanged, identical rebuild |
+| CI, on release tags | `typstgen verify --rebuild-only` | sources unchanged, identical rebuild (no PDFs in the checkout) |
+
+## Pin what the output depends on
+
+A rebuild on another machine is only identical if it reads the same inputs. In `typstgen.toml`:
+
+```toml
+template_paths = ["."]
+package_path = "vendor/packages"   # packages in the repository
+download_packages = false          # a missing package fails instead of being fetched
+use_system_fonts = false           # no fonts that exist on one machine only
+font_paths = ["fonts"]             # the fonts the documents use, in the repository
+```
+
+System fonts are the usual trap: a template that asks for Helvetica gets it on macOS and a
+fallback on a Linux runner, and the PDFs differ. With system fonts off, the same thing happens
+everywhere, and Typst warns about every font family it cannot find. Record every document with
+`--creation-timestamp` so the date is part of the input, not of the build machine.
+
+## Locally
+
+`scripts/verify.sh`:
+
+```bash
+#!/usr/bin/env bash
+# Checks the archive locally before a push: stored PDFs unchanged, sources
+# unchanged, every PDF rebuilds byte for byte.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+typstgen verify archive.json "$@"
+```
+
+Run it before pushing, or make Git do it with a hook in `.githooks/pre-push` that calls the
+script, activated once per clone with `git config core.hooksPath .githooks`.
+
+## GitHub Actions
+
+Document repositories are usually private, where Actions minutes cost money. The local check is
+the binding one; CI runs on release tags and on demand:
+
+```yaml
+# .github/workflows/verify.yml
+name: verify
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin/typstgen
+          key: typstgen-0.4.0
+      - name: Install typstgen
+        run: command -v typstgen || cargo install typstgen --version 0.4.0 --locked
+      - name: Rebuild and compare
+        run: typstgen verify archive.json --rebuild-only
+```
+
+The job fails if a source changed without a new record, or if a document no longer rebuilds to
+the recorded bytes. For a public repository, trigger it on `pull_request` as well.
+
+## Checked
+
+The recipe was tried on a repository with a ZUGFeRD invoice from the business-templates package:
+recorded on macOS with the settings above, cloned into a fresh directory without PDFs,
+`verify --rebuild-only` reported the document as identical.

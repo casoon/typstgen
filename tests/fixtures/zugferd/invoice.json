@@ -1,0 +1,49 @@
+{
+  "metadata": {
+    "invoice_number": "RE-2026-001",
+    "invoice_date": { "date": "2026-10-01" },
+    "delivery_date": { "date": "2026-09-30" },
+    "customer_number": "K-042",
+    "performance_period": "09/2026"
+  },
+  "recipient": {
+    "name": "Ada Example",
+    "company": "Example Ltd",
+    "address": {
+      "street": "Market Street",
+      "house_number": "22",
+      "postal_code": "20095",
+      "city": "Hamburg"
+    }
+  },
+  "items": [
+    {
+      "position": 1,
+      "description": "Letter and invoice templates",
+      "sub_items": ["- Layout", "- Data model"],
+      "quantity": "2.5",
+      "unit": "Tage",
+      "unit_price": { "amount": "960", "currency": "EUR" },
+      "vat_rate": { "code": "Standard", "percentage": "19" },
+      "total": { "amount": "2400", "currency": "EUR" }
+    },
+    {
+      "position": 2,
+      "description": "Reference book",
+      "quantity": "1",
+      "unit": "Stk",
+      "unit_price": { "amount": "39.90", "currency": "EUR" },
+      "vat_rate": { "code": "Reduced", "percentage": "7" },
+      "total": { "amount": "39.90", "currency": "EUR" }
+    }
+  ],
+  "totals": {
+    "subtotal": { "amount": "2439.90", "currency": "EUR" },
+    "vat_total": { "amount": "458.79", "currency": "EUR" },
+    "total": { "amount": "2898.69", "currency": "EUR" }
+  },
+  "payment": {
+    "payment_terms": "Zahlbar innerhalb von 14 Tagen netto",
+    "due_date": { "date": "2026-10-15" }
+  }
+}

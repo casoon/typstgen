@@ -10,11 +10,13 @@ config-driven instead of hardcoded.
 your-document.typ  +  typstgen.toml (template_paths)  →  your-document.pdf
 ```
 
-Usable three ways from one crate:
+Usable four ways from one crate:
 
 - **CLI** (`cli` feature, default): `typstgen compile input.typ`
 - **Rust library** (always available): `typstgen::compile(path, &config)`
 - **Wasm** (`wasm` feature): source and imports supplied as a JSON virtual filesystem
+- **MCP server** (`mcp` feature, default): `typstgen mcp` lets AI agents check,
+  preview and compile documents — `claude mcp add typstgen -- typstgen mcp --root .`
 
 ## Why
 
@@ -50,6 +52,18 @@ from `typstgen.toml` (optional; without a config, `./templates` and
 # Every existing directory is searched per import, in order.
 template_paths = ["templates"]
 ```
+
+Package imports (`#import "@preview/…"`, `@local/…`) resolve from the same
+directories as the typst CLI; missing `@preview` packages are downloaded once
+into its cache. Set `download_packages = false` for offline builds.
+
+ZUGFeRD / Factur-X e-invoices (EN 16931): `--zugferd invoice.json --company
+company.json --pdf-standard a-3b` embeds the invoice data as `factur-x.xml`,
+built from the same docgen JSON the invoice template renders.
+
+Archiving: `--manifest archive.json` records each build (options, SHA-256 of
+the PDF and of every file read); `typstgen verify` proves later that nothing
+changed and that every PDF rebuilds byte for byte.
 
 ```rust
 use typstgen::{compile, Config};

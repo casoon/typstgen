@@ -151,6 +151,8 @@ pub(crate) struct TypstWorld {
     fonts: FontCache,
     files: RwLock<HashMap<FileId, FileSlot>>,
     roots: Vec<PathBuf>,
+    #[cfg(not(target_arch = "wasm32"))]
+    packages: Option<crate::packages::Packages>,
     /// The creation timestamp from [`CompileOptions`], if any.
     fixed_now: Option<chrono::DateTime<chrono::Utc>>,
     #[cfg(not(target_arch = "wasm32"))]
@@ -214,7 +216,7 @@ impl TypstWorld {
 
     fn new(
         main_id: FileId,
-        source: String,
+        #[allow(unused_mut)] mut source: String,
         roots: Vec<PathBuf>,
         config: Option<&Config>,
         options: &CompileOptions,
@@ -224,21 +226,34 @@ impl TypstWorld {
             .iter()
             .map(|(key, value)| (key.as_str().into(), value.as_str().into_value()))
             .collect();
-        Self {
+        // ZUGFeRD: the main file attaches the invoice XML, served from memory.
+        #[cfg(feature = "zugferd")]
+        if options.zugferd_xml.is_some() {
+            source.push_str(crate::zugferd::ATTACH);
+        }
+        let world = Self {
             main: Source::new(main_id, source),
             library: typst::utils::LazyHash::new(Library::builder().with_inputs(inputs).build()),
             fonts: FontCache::new(config),
             files: RwLock::new(HashMap::new()),
             roots,
+            #[cfg(not(target_arch = "wasm32"))]
+            packages: config.map(crate::packages::Packages::new),
             fixed_now: options
                 .creation_timestamp
                 .and_then(|seconds| chrono::DateTime::from_timestamp(seconds, 0)),
             #[cfg(not(target_arch = "wasm32"))]
             now: OnceLock::new(),
+        };
+        #[cfg(feature = "zugferd")]
+        if let Some(xml) = &options.zugferd_xml {
+            let path = VirtualPath::new(crate::zugferd::VIRTUAL_PATH).expect("valid virtual path");
+            world.add_file(path, xml.clone());
         }
+        world
     }
 
-    #[cfg(feature = "wasm")]
+    #[cfg(any(feature = "wasm", feature = "zugferd"))]
     fn add_file(&self, path: VirtualPath, contents: Vec<u8>) {
         let id = project_file(path);
         let mut files = self
@@ -262,10 +277,7 @@ impl TypstWorld {
             }
         }
 
-        let result = self
-            .path_for(id)
-            .ok_or_else(|| FileError::NotFound(id.vpath().get_with_slash().into()))
-            .and_then(|path| load(&path));
+        let result = self.path_for(id).and_then(|path| load(&path));
 
         let mut files = self
             .files
@@ -278,7 +290,7 @@ impl TypstWorld {
     /// The path shown in diagnostics: the real file, relative to the working
     /// directory where possible, otherwise the virtual path.
     pub(crate) fn display_path(&self, id: FileId) -> String {
-        let Some(path) = self.path_for(id) else {
+        let Ok(path) = self.path_for(id) else {
             return id.vpath().get_without_slash().to_owned();
         };
         std::env::current_dir()
@@ -290,15 +302,67 @@ impl TypstWorld {
             .to_string()
     }
 
-    fn path_for(&self, id: FileId) -> Option<PathBuf> {
-        if *id.root() != VirtualRoot::Project {
-            return None;
+    /// The file on disk for `id`: a project file is looked up in every root,
+    /// a package file in its package directory.
+    /// Every file Typst read during the compilation, except the main file
+    /// and in-memory files: an identifier (project-relative path, or
+    /// `@namespace/name:version/path` for package files), the file on disk
+    /// and its bytes.
+    #[cfg(all(feature = "archive", not(target_arch = "wasm32")))]
+    pub(crate) fn dependencies(&self) -> Vec<(String, PathBuf, Bytes)> {
+        let files = self.files.read().expect("virtual filesystem lock poisoned");
+        let mut dependencies = Vec::new();
+        for (id, slot) in files.iter() {
+            let bytes = match (slot.bytes.get(), slot.source.get()) {
+                (Some(Ok(bytes)), _) => bytes.clone(),
+                (_, Some(Ok(source))) => Bytes::from_string(source.text().to_owned()),
+                _ => continue,
+            };
+            let Ok(path) = self.path_for(*id) else {
+                continue;
+            };
+            let name = match id.root() {
+                VirtualRoot::Project => id.vpath().get_without_slash().to_owned(),
+                VirtualRoot::Package(spec) => format!("{spec}/{}", id.vpath().get_without_slash()),
+            };
+            dependencies.push((name, path, bytes));
         }
+        dependencies
+    }
 
-        self.roots
+    /// Font files from disk that Typst loaded (the bundled fonts are fixed
+    /// by the Typst version).
+    #[cfg(all(feature = "archive", not(target_arch = "wasm32")))]
+    pub(crate) fn used_font_files(&self) -> Vec<(PathBuf, Bytes)> {
+        self.fonts
+            .fonts
             .iter()
-            .filter_map(|root| id.vpath().realize(root).ok())
-            .find(|path| path.is_file())
+            .filter_map(|slot| {
+                let path = slot.path.clone()?;
+                let font = slot.font.get()?.as_ref()?;
+                Some((path, font.data().clone()))
+            })
+            .collect()
+    }
+
+    fn path_for(&self, id: FileId) -> FileResult<PathBuf> {
+        let not_found = || FileError::NotFound(id.vpath().get_with_slash().into());
+        match id.root() {
+            VirtualRoot::Project => self
+                .roots
+                .iter()
+                .filter_map(|root| id.vpath().realize(root).ok())
+                .find(|path| path.is_file())
+                .ok_or_else(not_found),
+            #[cfg(not(target_arch = "wasm32"))]
+            VirtualRoot::Package(spec) => {
+                let packages = self.packages.as_ref().ok_or_else(not_found)?;
+                let root = packages.root(spec)?;
+                id.vpath().realize(&root).map_err(|_| not_found())
+            }
+            #[cfg(target_arch = "wasm32")]
+            VirtualRoot::Package(_) => Err(not_found()),
+        }
     }
 }
 

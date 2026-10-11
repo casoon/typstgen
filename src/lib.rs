@@ -19,10 +19,18 @@
 pub mod config;
 pub mod error;
 pub mod options;
+#[cfg(not(target_arch = "wasm32"))]
+mod packages;
 mod world;
 
+#[cfg(all(feature = "archive", not(target_arch = "wasm32")))]
+pub mod archive;
+#[cfg(feature = "mcp")]
+pub mod mcp;
 #[cfg(feature = "wasm")]
 pub mod wasm;
+#[cfg(feature = "zugferd")]
+pub mod zugferd;
 
 pub use config::Config;
 pub use error::{Error, Result};
@@ -54,6 +62,8 @@ pub fn compile(input: &Path, config: &Config) -> Result<Vec<u8>> {
 pub struct Output {
     /// The PDF bytes.
     pub pdf: Vec<u8>,
+    /// Number of pages in the document (before any page-range selection).
+    pub pages: usize,
     /// Formatted warnings, each starting with `path:line:column: warning:`
     /// when Typst knows the location.
     pub warnings: Vec<String>,
@@ -89,29 +99,127 @@ pub fn compile_with_options(
     compile_world(&world, options)
 }
 
+/// Like [`compile_with_options`], also returning the world to inspect which
+/// files and fonts were read.
+#[cfg(all(feature = "archive", not(target_arch = "wasm32")))]
+pub(crate) fn compile_keeping_world(
+    input: &Path,
+    config: &Config,
+    options: &CompileOptions,
+) -> Result<(Output, world::TypstWorld)> {
+    if !input.exists() {
+        return Err(Error::InputNotFound(input.to_path_buf()));
+    }
+    let world = world::TypstWorld::from_file(input, config, options)?;
+    let output = compile_world(&world, options)?;
+    Ok((output, world))
+}
+
 fn compile_world(world: &world::TypstWorld, options: &CompileOptions) -> Result<Output> {
     let pdf_options = pdf_options(options)?;
+    let (document, warnings) = compile_document(world)?;
+    let pdf = typst_pdf::pdf(&document, &pdf_options)
+        .map_err(|errors| compile_error(world, &errors, &warnings))?;
+    #[cfg(feature = "zugferd")]
+    let pdf = if options.zugferd_xml.is_some() {
+        zugferd::pdf::add_factur_x_metadata(pdf).map_err(Error::Zugferd)?
+    } else {
+        pdf
+    };
+    Ok(Output {
+        pdf,
+        pages: document.pages().len(),
+        warnings,
+    })
+}
+
+/// Lays out the document and returns it with its formatted warnings.
+fn compile_document(
+    world: &world::TypstWorld,
+) -> Result<(typst_layout::PagedDocument, Vec<String>)> {
     let warned = typst::compile(world);
     let warnings: Vec<String> = warned
         .warnings
         .iter()
         .map(|warning| format_diagnostic(world, warning))
         .collect();
-    let fail = |errors: typst::ecow::EcoVec<SourceDiagnostic>| {
-        let mut lines: Vec<String> = errors
-            .iter()
-            .map(|error| format_diagnostic(world, error))
-            .collect();
-        lines.extend(warnings.iter().cloned());
-        Error::Compile(lines.join("\n"))
-    };
+    let document = warned
+        .output
+        .map_err(|errors| compile_error(world, &errors, &warnings))?;
+    Ok((document, warnings))
+}
 
-    let document = warned.output.map_err(fail)?;
-    let pdf = typst_pdf::pdf(&document, &pdf_options).map_err(fail)?;
-    Ok(Output { pdf, warnings })
+/// An [`Error::Compile`] listing `errors`, followed by `warnings`.
+fn compile_error(
+    world: &world::TypstWorld,
+    errors: &[SourceDiagnostic],
+    warnings: &[String],
+) -> Error {
+    let mut lines: Vec<String> = errors
+        .iter()
+        .map(|error| format_diagnostic(world, error))
+        .collect();
+    lines.extend(warnings.iter().cloned());
+    Error::Compile(lines.join("\n"))
+}
+
+/// Renders one page of a `.typ` file as PNG (`png` feature).
+///
+/// `page` is 1-based. `pixels_per_point` sets the resolution: `1.0` is 72 dpi,
+/// `2.0` (144 dpi) suits screen previews. [`CompileOptions`] are used for
+/// `sys.inputs` and the creation date; PDF settings do not apply.
+///
+/// # Errors
+///
+/// See [`compile`]. A `page` outside the document is reported as
+/// [`Error::PageOutOfRange`].
+#[cfg(feature = "png")]
+pub fn render_png(
+    input: &Path,
+    config: &Config,
+    options: &CompileOptions,
+    page: usize,
+    pixels_per_point: f64,
+) -> Result<Vec<u8>> {
+    if !input.exists() {
+        return Err(Error::InputNotFound(input.to_path_buf()));
+    }
+    let world = world::TypstWorld::from_file(input, config, options)?;
+    let (document, _) = compile_document(&world)?;
+    let pages = document.pages();
+    let selected = page
+        .checked_sub(1)
+        .and_then(|index| pages.get(index))
+        .ok_or(Error::PageOutOfRange {
+            page,
+            pages: pages.len(),
+        })?;
+    let pixmap = typst_render::render(
+        selected,
+        &typst_render::RenderOptions {
+            pixel_per_pt: typst::utils::Scalar::new(pixels_per_point),
+            ..Default::default()
+        },
+    );
+    pixmap
+        .encode_png()
+        .map_err(|error| Error::Io(std::io::Error::other(error)))
 }
 
 fn pdf_options(options: &CompileOptions) -> Result<typst_pdf::PdfOptions> {
+    #[cfg(feature = "zugferd")]
+    if options.zugferd_xml.is_some()
+        && !options.pdf_standards.iter().any(|standard| {
+            matches!(
+                standard,
+                PdfStandard::A3a | PdfStandard::A3b | PdfStandard::A3u
+            )
+        })
+    {
+        return Err(Error::Zugferd(
+            "a ZUGFeRD invoice needs a PDF/A-3 standard, e.g. --pdf-standard a-3b".to_owned(),
+        ));
+    }
     let standards: Vec<_> = options
         .pdf_standards
         .iter()

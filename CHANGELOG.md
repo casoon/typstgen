@@ -6,6 +6,40 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Breaking
+
+- `Config` has three new public fields; struct literals need `..Config::default()`.
+- `Output` has a new public field `pages`; `CompileOptions` has `zugferd_xml` (with the `zugferd`
+  feature), so struct literals need `..CompileOptions::default()`.
+
+### Added
+
+- `typstgen mcp`: a Model Context Protocol server over stdio with the tools `check`, `preview`,
+  `compile` and `list_templates`, restricted to a workspace directory (`--root`). Errors are
+  returned to the agent as `path:line:column` lines so it can fix them itself. `mcp` feature, on by
+  default.
+- `render_png` renders one page as PNG (`png` feature) and `Error::PageOutOfRange`.
+- `Output::pages`: the number of pages of the compiled document.
+- ZUGFeRD / Factur-X e-invoices (EN 16931, `zugferd` feature, on by default): `--zugferd
+  invoice.json --company company.json` builds the CII XML from docgen invoice data, checks it, embeds
+  it as `factur-x.xml` in a PDF/A-3 and adds the Factur-X XMP schema. Library:
+  `zugferd::xml_from_docgen`, `CompileOptions::zugferd_xml`, `Error::Zugferd`. MCP: `zugferd`
+  parameter of `compile`.
+- Archive manifests (`archive` feature, on by default): `compile --manifest archive.json` records
+  the options and the SHA-256 of the PDF, of every file Typst read and of every font file loaded;
+  `typstgen verify` checks that the PDFs are unchanged and rebuild byte for byte. Library:
+  `archive::{compile_and_record, verify, Job, Report}`, `Error::Archive`. `verify --rebuild-only`
+  skips the stored PDFs for CI checkouts.
+- Guide "Checks and CI": pinned fonts and packages, a local verify script and a tag-triggered
+  GitHub Actions workflow.
+- Example `examples/thesis.typ`: a seminar paper built on a local package
+  (`examples/packages/local/thesis/0.1.0`) with BibTeX citations, compiled as PDF/A-2b.
+- Typst packages: `#import "@preview/…"` and `@local/…` resolve from the same package data and
+  cache directories as the typst CLI. Missing `@preview` packages are downloaded from Typst
+  Universe (`download` feature, on by default, pure-Rust TLS). New `typstgen.toml` keys
+  `package_path`, `package_cache_path` and `download_packages`. Native builds only.
+- Tests for citations and `#bibliography` (BibTeX) under PDF/A-2b.
+
 ## [0.3.0] - 2026-09-24
 
 ### Added

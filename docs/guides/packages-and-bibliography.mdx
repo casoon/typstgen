@@ -1,0 +1,90 @@
+---
+title: Packages and bibliographies
+description: Import Typst packages from Typst Universe or a local directory, keep builds offline and reproducible, and cite from BibTeX or Hayagriva files.
+order: 4
+---
+
+## Packages
+
+A package import works as in the typst CLI:
+
+```typst
+#import "@preview/oxifmt:0.2.1": strfmt
+#strfmt("{} pages", 15)
+```
+
+typstgen looks for the package in this order:
+
+1. The **package data directory**, for packages you install yourself (`@local/…` or any other
+   namespace). Default: `~/Library/Application Support/typst/packages` on macOS,
+   `~/.local/share/typst/packages` on Linux, `%APPDATA%/typst/packages` on Windows.
+2. The **package cache**, for downloaded `@preview` packages. Default:
+   `~/Library/Caches/typst/packages` on macOS, `~/.cache/typst/packages` on Linux,
+   `%LOCALAPPDATA%/typst/packages` on Windows. Packages the typst CLI already fetched are reused.
+3. **Typst Universe**: a missing `@preview` package is downloaded once and stored in the cache.
+
+Inside both directories a package lives at `<namespace>/<name>/<version>/`, with its `typst.toml`
+at the top.
+
+### Offline and pinned builds
+
+Package versions are fixed in the import, so a cached package never changes. For builds that must
+not touch the network, such as CI or archiving, turn downloads off and point the cache at a
+directory inside the project:
+
+```toml
+package_cache_path = "vendor/typst-packages"
+download_packages = false
+```
+
+Fill `vendor/typst-packages` once (with downloads on, or by copying from your cache) and commit it.
+A missing package then fails the build instead of being fetched:
+
+```text
+error: typst compilation failed:
+paper.typ:1:9: error: package not found (searched for @preview/oxifmt:0.2.1)
+```
+
+Together with `--creation-timestamp` the output is byte-identical across runs.
+
+Building the crate without the `download` feature removes the HTTP client entirely; local and cached
+packages still resolve.
+
+## Bibliographies
+
+`#bibliography` reads BibTeX (`.bib`) or Hayagriva (`.yml`) files like any other project file, so
+they are found next to the document or in a template directory. All citation styles bundled with
+Typst are available, for example `"apa"`, `"ieee"`, `"chicago-author-date"` or `"iso-690-author-date"`.
+A custom `.csl` file works the same way.
+
+```typst
+#set text(lang: "de")
+Literate Programming @knuth1984 verbindet Code und Text.
+
+#bibliography("refs.bib", style: "apa")
+```
+
+```bibtex
+@article{knuth1984,
+  author  = {Donald E. Knuth},
+  title   = {Literate Programming},
+  journal = {The Computer Journal},
+  volume  = {27}, number = {2}, pages = {97--111},
+  year    = {1984},
+  doi     = {10.1093/comjnl/27.2.97}
+}
+```
+
+```sh
+typstgen compile paper.typ --pdf-standard a-2b --creation-timestamp "$(date +%s)"
+```
+
+Citations, formulas and the bibliography are compatible with PDF/A-2b and tagged PDF.
+
+## Example: a seminar paper as a local package
+
+`examples/` in the repository contains a complete seminar paper. Its layout (title page, outlines,
+numbering, bibliography, appendix, declaration; German and English) is a package in
+`examples/packages/local/thesis/0.1.0/`, imported as `@local/thesis:0.1.0` through
+`package_path = "packages"`. Copy that folder into your own package directory to use the layout in
+any project. The compiled PDF is in the [showcase](../../../showcase/).

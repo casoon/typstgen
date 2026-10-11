@@ -44,6 +44,7 @@ impl CompileRequest {
                 None => Vec::new(),
             },
             pdf_tags: self.pdf_tags.unwrap_or(true),
+            ..CompileOptions::default()
         })
     }
 }

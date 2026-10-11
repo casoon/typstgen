@@ -20,5 +20,11 @@ Options:
           Pages to export, comma-separated (e.g. 1-3,5,8-); implies an untagged PDF
       --no-pdf-tags
           Write an untagged PDF (smaller, but without document structure)
+      --zugferd <INVOICE_JSON>
+          Embed a ZUGFeRD / Factur-X invoice (EN 16931) built from this docgen invoice JSON; needs --company and a PDF/A-3 standard
+      --company <COMPANY_JSON>
+          company.json with the seller's data, for --zugferd
+      --manifest <MANIFEST>
+          Record the build (options, SHA-256 of the PDF and of every file read) in this manifest, e.g. archive.json; check it later with `typstgen verify`
   -h, --help
           Print help
