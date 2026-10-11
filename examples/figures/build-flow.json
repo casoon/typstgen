@@ -1,0 +1,114 @@
+{
+  "schemaVersion": 1,
+  "type": "flow",
+  "title": "Vom Quelltext zum archivierten PDF",
+  "description": "Quelltext und Daten werden mit festgelegten Schriften, Paketen und Zeitstempel übersetzt; das PDF/A wird abgelegt und seine Prüfsumme protokolliert. Ein späterer Neubau muss dieselbe Prüfsumme ergeben.",
+  "source": "Eigene Darstellung",
+  "width": 640,
+  "height": 800,
+  "flow": {
+    "lanes": [
+      {
+        "id": "src",
+        "label": "Quellen"
+      },
+      {
+        "id": "build",
+        "label": "Übersetzung"
+      },
+      {
+        "id": "archive",
+        "label": "Archiv"
+      }
+    ],
+    "nodes": [
+      {
+        "id": "typ",
+        "label": "Quelltext",
+        "sublabel": ".typ",
+        "kind": "start",
+        "lane": "src"
+      },
+      {
+        "id": "data",
+        "label": "Daten",
+        "sublabel": "JSON, BibTeX",
+        "lane": "src"
+      },
+      {
+        "id": "compile",
+        "label": "typstgen",
+        "sublabel": "feste Schriften, Pakete, Datum",
+        "lane": "build"
+      },
+      {
+        "id": "pdf",
+        "label": "PDF/A-2b",
+        "lane": "build"
+      },
+      {
+        "id": "hash",
+        "label": "Prüfsumme",
+        "sublabel": "SHA-256",
+        "lane": "archive"
+      },
+      {
+        "id": "same",
+        "label": "Neubau gleich?",
+        "kind": "decision",
+        "lane": "archive"
+      },
+      {
+        "id": "ok",
+        "label": "Nachprüfbar",
+        "kind": "end",
+        "lane": "archive"
+      }
+    ],
+    "edges": [
+      {
+        "from": "typ",
+        "to": "data"
+      },
+      {
+        "from": "data",
+        "to": "compile"
+      },
+      {
+        "from": "compile",
+        "to": "pdf"
+      },
+      {
+        "from": "pdf",
+        "to": "hash",
+        "label": "ablegen"
+      },
+      {
+        "from": "hash",
+        "to": "same"
+      },
+      {
+        "from": "same",
+        "to": "ok",
+        "label": "ja"
+      },
+      {
+        "from": "same",
+        "to": "compile",
+        "label": "nein: Ursache suchen",
+        "dash": "dashed"
+      }
+    ],
+    "mainPath": [
+      "typ",
+      "data",
+      "compile",
+      "pdf",
+      "hash",
+      "same",
+      "ok"
+    ]
+  },
+  "showTitle": false,
+  "locale": "de"
+}

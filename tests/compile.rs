@@ -533,3 +533,24 @@ fn renders_a_page_as_png() {
         "{error:?}"
     );
 }
+
+#[test]
+fn example_thesis_compiles_as_pdf_a() {
+    let examples = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("examples");
+    let config = Config {
+        template_paths: vec![examples.join("templates")],
+        package_path: Some(examples.join("packages")),
+        download_packages: false,
+        ..config_with(vec![])
+    };
+    let options = CompileOptions {
+        pdf_standards: vec![PdfStandard::A2b],
+        creation_timestamp: Some(1_759_276_800),
+        ..CompileOptions::default()
+    };
+
+    let output = compile_with_options(&examples.join("thesis.typ"), &config, &options)
+        .expect("compile the example thesis");
+    assert_eq!(output.pages, 7);
+    assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+}

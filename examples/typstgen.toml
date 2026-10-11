@@ -3,5 +3,10 @@
 # (regenerate.sh does that).
 template_paths = ["templates"]
 
+# Packages for thesis.typ (@local/thesis) live in this folder. No downloads:
+# every example builds offline.
+package_path = "packages"
+download_packages = false
+
 # Bundled fonts only: the PDFs come out the same on every machine.
 use_system_fonts = false
