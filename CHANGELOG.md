@@ -25,6 +25,10 @@ All notable changes to this project are documented in this file. The format is b
   it as `factur-x.xml` in a PDF/A-3 and adds the Factur-X XMP schema. Library:
   `zugferd::xml_from_docgen`, `CompileOptions::zugferd_xml`, `Error::Zugferd`. MCP: `zugferd`
   parameter of `compile`.
+- Archive manifests (`archive` feature, on by default): `compile --manifest archive.json` records
+  the options and the SHA-256 of the PDF, of every file Typst read and of every font file loaded;
+  `typstgen verify` checks that the PDFs are unchanged and rebuild byte for byte. Library:
+  `archive::{compile_and_record, verify, Job, Report}`, `Error::Archive`.
 - Example `examples/thesis.typ`: a seminar paper built on a local package
   (`examples/packages/local/thesis/0.1.0`) with BibTeX citations, compiled as PDF/A-2b.
 - Typst packages: `#import "@preview/…"` and `@local/…` resolve from the same package data and

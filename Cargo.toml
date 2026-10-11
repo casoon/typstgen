@@ -70,11 +70,13 @@ chrono = { version = "0.4", features = ["clock"] }
 # Package directories (`@local/…`, cached `@preview/…`) at the same locations
 # the typst CLI uses, and unpacking of Typst Universe archives.
 typst-kit = { version = "0.15", default-features = false, features = ["system-packages"] }
+# SHA-256 for archive manifests.
+sha2 = { version = "0.10", optional = true }
 # HTTPS client for Typst Universe downloads (pure-Rust TLS, no OpenSSL).
 ureq = { version = "2.12", default-features = false, features = ["tls", "proxy-from-env"], optional = true }
 
 [features]
-default = ["cli", "download", "mcp", "zugferd"]
+default = ["cli", "download", "mcp", "zugferd", "archive"]
 cli = ["dep:clap"]
 # Download missing `@preview` packages from Typst Universe (native only).
 download = ["dep:ureq"]
@@ -82,6 +84,8 @@ download = ["dep:ureq"]
 png = ["dep:typst-render"]
 # ZUGFeRD / Factur-X e-invoices (EN 16931) from docgen invoice JSON.
 zugferd = []
+# Archive manifests: record builds, verify them byte for byte (native only).
+archive = ["dep:sha2"]
 # `typstgen mcp`: an MCP server over stdio for AI agents.
 mcp = ["cli", "png", "dep:rmcp", "dep:schemars", "dep:tokio", "dep:base64"]
 wasm = ["dep:wasm-bindgen"]

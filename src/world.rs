@@ -304,6 +304,47 @@ impl TypstWorld {
 
     /// The file on disk for `id`: a project file is looked up in every root,
     /// a package file in its package directory.
+    /// Every file Typst read during the compilation, except the main file
+    /// and in-memory files: an identifier (project-relative path, or
+    /// `@namespace/name:version/path` for package files), the file on disk
+    /// and its bytes.
+    #[cfg(all(feature = "archive", not(target_arch = "wasm32")))]
+    pub(crate) fn dependencies(&self) -> Vec<(String, PathBuf, Bytes)> {
+        let files = self.files.read().expect("virtual filesystem lock poisoned");
+        let mut dependencies = Vec::new();
+        for (id, slot) in files.iter() {
+            let bytes = match (slot.bytes.get(), slot.source.get()) {
+                (Some(Ok(bytes)), _) => bytes.clone(),
+                (_, Some(Ok(source))) => Bytes::from_string(source.text().to_owned()),
+                _ => continue,
+            };
+            let Ok(path) = self.path_for(*id) else {
+                continue;
+            };
+            let name = match id.root() {
+                VirtualRoot::Project => id.vpath().get_without_slash().to_owned(),
+                VirtualRoot::Package(spec) => format!("{spec}/{}", id.vpath().get_without_slash()),
+            };
+            dependencies.push((name, path, bytes));
+        }
+        dependencies
+    }
+
+    /// Font files from disk that Typst loaded (the bundled fonts are fixed
+    /// by the Typst version).
+    #[cfg(all(feature = "archive", not(target_arch = "wasm32")))]
+    pub(crate) fn used_font_files(&self) -> Vec<(PathBuf, Bytes)> {
+        self.fonts
+            .fonts
+            .iter()
+            .filter_map(|slot| {
+                let path = slot.path.clone()?;
+                let font = slot.font.get()?.as_ref()?;
+                Some((path, font.data().clone()))
+            })
+            .collect()
+    }
+
     fn path_for(&self, id: FileId) -> FileResult<PathBuf> {
         let not_found = || FileError::NotFound(id.vpath().get_with_slash().into());
         match id.root() {

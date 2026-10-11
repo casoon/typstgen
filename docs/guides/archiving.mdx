@@ -1,0 +1,92 @@
+---
+title: Archiving
+description: Record how each PDF was built, prove later that nothing changed and that the PDF can be rebuilt byte for byte, and keep sources and documents in a layout that stays readable.
+order: 7
+---
+
+`compile --manifest` writes a record of the build; `verify` checks it later.
+
+```sh
+typstgen compile invoices/2026/RE-2026-001.typ --pdf-standard a-3b \
+  --creation-timestamp 1790000000 --manifest archive.json
+typstgen verify archive.json
+```
+
+```text
+ok      invoices/2026/RE-2026-001.pdf
+FAILED  letters/2026/BR-2026-004.pdf
+        changed: letters/2026/BR-2026-004.typ
+        the rebuild differs from the recorded PDF
+1 of 2 documents verified
+```
+
+## What the manifest holds
+
+For every PDF (the key, relative to the working directory) `archive.json` stores:
+
+- the source file and the `typstgen.toml` that was used,
+- the compile options: `sys.inputs`, PDF standards, creation timestamp, tagging, ZUGFeRD data files,
+- SHA-256 of the PDF,
+- SHA-256 of every file Typst read: imports, templates, JSON data, images, bibliographies, package
+  files (as `@preview/name:version/path`),
+- SHA-256 of every font file loaded from disk (the bundled fonts are fixed by the Typst version),
+- the typstgen and Typst versions and the page count.
+
+Recording the same PDF again replaces its entry. `--pages` cannot be combined with `--manifest`:
+an archive holds whole documents.
+
+## What verify checks
+
+1. The stored PDF still has the recorded SHA-256.
+2. The document is rebuilt with the recorded options, and every file and font it reads has the
+   recorded SHA-256. Changed, missing and newly used files are listed.
+3. The rebuilt PDF is byte-identical to the recorded one.
+
+Byte-identical rebuilds need a fixed date: pass `--creation-timestamp` (or `SOURCE_DATE_EPOCH`)
+when recording. A document recorded without one verifies only if it never uses the current date.
+A newer Typst version may typeset differently; `verify` then names both versions. Run `compile --manifest`
+and `verify` from the same directory, because paths are relative to it, like those in `typstgen.toml`.
+`verify` exits with code 1 if any document fails, so it works as a CI step.
+
+## A layout that stays readable
+
+```text
+project/
+  typstgen.toml
+  archive.json              # in Git
+  _data/company.json        # master data, in Git
+  templates/                # or a package in vendor/typst-packages
+  invoices/2026/
+    RE-2026-001.json        # data, in Git
+    RE-2026-001.typ         # thin wrapper: template + data, in Git
+    RE-2026-001.pdf         # output: archive storage, not Git
+```
+
+- One folder per document type and year; the file name is the document number.
+- Data, wrapper and manifest are small text files and belong in version control; the history shows
+  who changed what and when.
+- PDFs are outputs: keep them in the archive storage, not in Git. The manifest ties each stored PDF
+  to the exact sources it was built from.
+- Pin packages (`download_packages = false` with a project-local cache) and record fonts, so a
+  rebuild in eight years reads the same inputs.
+
+## Legal context (Germany)
+
+This is background, not legal advice; check the current rules or ask your tax advisor. As of
+October 2026:
+
+- Invoices and other bookkeeping vouchers are kept for eight years since 1 January 2025
+  (§ 147 Abs. 3 AO, § 14b UStG); books and annual accounts for ten.
+- The GoBD (BMF letter of 28 November 2019, last amended 14 July 2025) do not prescribe a specific
+  archive system or checksums. They name versioning and automatic logging as examples of
+  measures for unalterability, and say that plain file storage is usually not enough on its own.
+- For a hybrid e-invoice such as ZUGFeRD, the XML is the leading part for VAT; keeping the XML is
+  generally sufficient unless the PDF holds additional tax-relevant information.
+- For outgoing invoices produced by an invoicing program, the GoBD do not require an image copy if
+  a content-identical copy can be produced at any time (Rz. 76 in the version of 14 July 2025).
+  A manifest plus a successful `verify` is one way to document that ability.
+- PDF/A is not legally required; it is the container format ZUGFeRD uses.
+
+Sources: [§ 147 AO](https://www.gesetze-im-internet.de/ao_1977/__147.html),
+[§ 14b UStG](https://www.gesetze-im-internet.de/ustg_1980/__14b.html),
+[GoBD, 2nd amendment of 14 July 2025 (BMF)](https://www.bundesfinanzministerium.de/Content/DE/Downloads/BMF_Schreiben/Weitere_Steuerthemen/Abgabenordnung/2025-07-14-GoBD-2-aenderung.pdf?__blob=publicationFile&v=3).

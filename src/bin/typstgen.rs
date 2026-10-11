@@ -54,6 +54,18 @@ enum Commands {
         #[cfg(feature = "zugferd")]
         #[arg(long, value_name = "COMPANY_JSON", requires = "zugferd")]
         company: Option<PathBuf>,
+        /// Record the build (options, SHA-256 of the PDF and of every file read) in this
+        /// manifest, e.g. archive.json; check it later with `typstgen verify`
+        #[cfg(feature = "archive")]
+        #[arg(long, value_name = "MANIFEST", conflicts_with = "pages")]
+        manifest: Option<PathBuf>,
+    },
+    /// Check the PDFs recorded in a manifest: unchanged, same sources, identical rebuild
+    #[cfg(feature = "archive")]
+    Verify {
+        /// The manifest written by `compile --manifest`
+        #[arg(default_value = "archive.json")]
+        manifest: PathBuf,
     },
     /// Serve the Model Context Protocol on stdin/stdout for AI agents
     #[cfg(feature = "mcp")]
@@ -84,7 +96,32 @@ fn main() -> ExitCode {
             zugferd,
             #[cfg(feature = "zugferd")]
             company,
+            #[cfg(feature = "archive")]
+            manifest,
         } => {
+            #[cfg(feature = "archive")]
+            if let Some(manifest) = manifest {
+                #[cfg(feature = "zugferd")]
+                let zugferd = zugferd.zip(company);
+                #[cfg(not(feature = "zugferd"))]
+                let zugferd = None;
+                let job = typstgen::archive::Job {
+                    output: output.unwrap_or_else(|| input.with_extension("pdf")),
+                    input,
+                    // Config::load falls back to ./typstgen.toml; record that file too.
+                    config: config.or_else(|| {
+                        let local = PathBuf::from("typstgen.toml");
+                        local.exists().then_some(local)
+                    }),
+                    inputs: inputs.into_iter().collect(),
+                    pdf_standards,
+                    creation_timestamp,
+                    pdf_tags: !no_pdf_tags,
+                    zugferd,
+                };
+                return record(&manifest, &job);
+            }
+
             #[cfg(feature = "zugferd")]
             let zugferd_xml = match zugferd
                 .zip(company)
@@ -133,6 +170,8 @@ fn main() -> ExitCode {
                 }
             }
         }
+        #[cfg(feature = "archive")]
+        Commands::Verify { manifest } => verify(&manifest),
         #[cfg(feature = "mcp")]
         Commands::Mcp { root, config } => match serve_mcp(root, config) {
             Ok(()) => ExitCode::SUCCESS,
@@ -141,6 +180,58 @@ fn main() -> ExitCode {
                 ExitCode::FAILURE
             }
         },
+    }
+}
+
+#[cfg(feature = "archive")]
+fn record(manifest: &std::path::Path, job: &typstgen::archive::Job) -> ExitCode {
+    let result = Config::load(job.config.as_deref())
+        .and_then(|config| typstgen::archive::compile_and_record(manifest, job, &config));
+    match result {
+        Ok(compiled) => {
+            for warning in &compiled.warnings {
+                eprintln!("{warning}");
+            }
+            println!("{}", job.output.display());
+            ExitCode::SUCCESS
+        }
+        Err(err) => {
+            eprintln!("error: {err}");
+            ExitCode::FAILURE
+        }
+    }
+}
+
+#[cfg(feature = "archive")]
+fn verify(manifest: &std::path::Path) -> ExitCode {
+    let reports = match typstgen::archive::verify(manifest) {
+        Ok(reports) => reports,
+        Err(err) => {
+            eprintln!("error: {err}");
+            return ExitCode::FAILURE;
+        }
+    };
+    let mut failed = 0;
+    for report in &reports {
+        if report.problems.is_empty() {
+            println!("ok      {}", report.document);
+        } else {
+            failed += 1;
+            println!("FAILED  {}", report.document);
+            for problem in &report.problems {
+                println!("        {problem}");
+            }
+        }
+    }
+    println!(
+        "{} of {} documents verified",
+        reports.len() - failed,
+        reports.len()
+    );
+    if failed == 0 {
+        ExitCode::SUCCESS
+    } else {
+        ExitCode::FAILURE
     }
 }
 
