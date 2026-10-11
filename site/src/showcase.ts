@@ -43,7 +43,7 @@ const pdfExamples = [
     title: 'Seminar paper with citations',
     tags: ['local package', 'BibTeX', 'PDF/A-2b'],
     description:
-      'thesis.typ imports @local/thesis:0.1.0 from examples/packages (package_path in typstgen.toml) and cites from refs.bib in APA style. Title page, outlines, numbered equation, table, appendix and declaration come from the package. Compiled with --pdf-standard a-2b and a fixed --creation-timestamp.',
+      'thesis.typ imports @local/thesis:0.1.0 from examples/packages (package_path in typstgen.toml) and cites from refs.bib in APA style. Title page, outlines, numbered equation, a Chartlet flow diagram (print SVG), table, appendix and declaration come from the package. Compiled with --pdf-standard a-2b and a fixed --creation-timestamp.',
   },
   {
     slug: 'letter',
