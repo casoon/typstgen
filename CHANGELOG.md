@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-10-12
+
 ### Changed
 
 - The Typst world (fonts, template roots, packages, `datetime.today()`) now comes from the new
