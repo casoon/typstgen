@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-11
+
 ### Breaking
 
 - `Config` has three new public fields; struct literals need `..Config::default()`.
