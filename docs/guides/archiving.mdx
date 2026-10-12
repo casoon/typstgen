@@ -49,6 +49,38 @@ and `verify` from the same directory, because paths are relative to it, like tho
 `verify` exits with code 1 if any document fails, so it works as a CI step; see
 [Checks and CI](../ci/) for `--rebuild-only` and a workflow.
 
+A PDF signed after recording still passes: signers append the signature as an incremental update,
+so the recorded bytes stay at the start of the file. `verify` finds them there and adds a note;
+revisions appended without a signature fail. See [Signing](../signing/).
+
+## Timestamp the manifest
+
+A timestamp from an RFC 3161 timestamp authority (TSA) proves that `archive.json`, and with it
+every SHA-256 it lists, existed at a given time. It changes no PDF. With OpenSSL 3 or later (the
+LibreSSL that ships with macOS cannot verify the certificate chain; use Homebrew's `openssl`):
+
+```sh
+openssl ts -query -data archive.json -sha256 -cert -out archive.tsq
+curl -s -H "Content-Type: application/timestamp-query" --data-binary @archive.tsq \
+  http://timestamp.digicert.com -o archive.json.tsr
+openssl ts -verify -data archive.json -in archive.json.tsr -CAfile /etc/ssl/certs/ca-certificates.crt
+```
+
+```text
+Verification: OK
+```
+
+The CA file is the system bundle: `/etc/ssl/certs/ca-certificates.crt` on Debian and Ubuntu,
+on macOS with Homebrew `$(brew --prefix)/etc/ca-certificates/cert.pem`. If
+`archive.json` changes afterwards, the check fails with `message imprint mismatch`.
+
+Commit `archive.json.tsr` together with `archive.json` after each archiving run. Git then keeps
+every manifest next to its timestamp; check an older pair after
+`git show <commit>:archive.json > old.json` and `git show <commit>:archive.json.tsr > old.tsr`.
+The TSAs in [Signing](../signing/#timestamp-authorities) are free but not *qualified* under
+eIDAS; a qualified timestamp, which carries a legal presumption of the correct time, needs a
+qualified trust service provider.
+
 ## A layout that stays readable
 
 ```text

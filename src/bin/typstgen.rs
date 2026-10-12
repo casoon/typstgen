@@ -229,6 +229,9 @@ fn verify(manifest: &std::path::Path, rebuild_only: bool) -> ExitCode {
                 println!("        {problem}");
             }
         }
+        for note in &report.notes {
+            println!("        note: {note}");
+        }
     }
     println!(
         "{} of {} documents verified",
