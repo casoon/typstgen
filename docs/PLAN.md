@@ -1,3 +1,5 @@
+> docgen ist seit 2026-10-12 eingestellt; seine Templates leben als Typst-Paket `business-templates` in casoon/typst-business-templates weiter. Dieses Dokument ist der historische Plan.
+
 # typstgen — Entwicklungsplan
 
 ## Ziel

@@ -20,15 +20,16 @@ Usable four ways from one crate:
 
 ## Why
 
-[`docgen`](https://github.com/casoon/typst-business-templates) already does
-PDF generation from Typst, but grew into a client/project-management tool
-along the way and only ever hardcoded its template lookup paths. typstgen is
-the minimal version of the same idea: one job (`.typ` in, PDF out), with the
+typstgen replaces docgen, the CLI of
+[typst-business-templates](https://github.com/casoon/typst-business-templates).
+docgen did PDF generation from Typst, but grew into a client/project-management
+tool along the way and only ever hardcoded its template lookup paths. typstgen
+is the minimal version of the same idea: one job (`.typ` in, PDF out), with the
 template directory resolved from config instead of baked in.
 
-typstgen is the successor of docgen, which is in maintenance mode. docgen's
-templates are plain Typst and compile with typstgen; client and project
-management, numbering and `--encrypt` are not carried over.
+docgen is discontinued. Its templates live on as the Typst package
+`business-templates` in the same repository and compile with typstgen; client
+and project management, numbering and `--encrypt` are not carried over.
 
 The architecture follows
 [`renderreport`](https://github.com/casoon/renderreport): embedded Typst,
@@ -62,7 +63,8 @@ into its cache. Set `download_packages = false` for offline builds.
 
 ZUGFeRD / Factur-X e-invoices (EN 16931): `--zugferd invoice.json --company
 company.json --pdf-standard a-3b` embeds the invoice data as `factur-x.xml`,
-built from the same docgen JSON the invoice template renders.
+built from the same invoice JSON the `business-templates` invoice template
+renders.
 
 Archiving: `--manifest archive.json` records each build (options, SHA-256 of
 the PDF and of every file read); `typstgen verify` proves later that nothing

@@ -6,6 +6,12 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Changed
+
+- Docs: docgen is discontinued. Its templates live on as the Typst package `business-templates`
+  in [typst-business-templates](https://github.com/casoon/typst-business-templates), and help texts
+  call the invoice data "business-templates invoice JSON".
+
 ## [0.5.0] - 2026-10-13
 
 ### Breaking

@@ -64,7 +64,7 @@ Options:
 | `--pages` | Pages to export, for example `1-3,5,8-`. Produces an untagged PDF. |
 | `--no-pdf-tags` | Write an untagged PDF. |
 | `--manifest` | Record the build in a manifest (e.g. `archive.json`) for `typstgen verify`. Not with `--pages`. See [Archiving](../../guides/archiving/). |
-| `--zugferd`, `--company` | Embed a ZUGFeRD e-invoice built from a docgen invoice JSON and company.json; needs a PDF/A-3 standard. See [E-invoices](../../guides/e-invoices/). |
+| `--zugferd`, `--company` | Embed a ZUGFeRD e-invoice built from a business-templates invoice JSON and company.json; needs a PDF/A-3 standard. See [E-invoices](../../guides/e-invoices/). |
 
 The last five options are explained in [Inputs and PDF options](../../guides/inputs-and-pdf/).
 
