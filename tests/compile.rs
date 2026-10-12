@@ -604,6 +604,34 @@ mod zugferd {
     }
 
     #[test]
+    fn maps_kleinunternehmer_to_exempt() {
+        let exempt = "{ \"code\": \"Kleinunternehmer\", \"percentage\": \"0\" }";
+        let invoice = fixture("invoice.json")
+            .replace("{ \"code\": \"Standard\", \"percentage\": \"19\" }", exempt)
+            .replace("{ \"code\": \"Reduced\", \"percentage\": \"7\" }", exempt)
+            .replace("\"amount\": \"458.79\"", "\"amount\": \"0\"")
+            .replace("\"amount\": \"2898.69\"", "\"amount\": \"2439.90\"");
+        let Err(Error::Zugferd(message)) =
+            typstgen::zugferd::xml_from_docgen(&invoice, &fixture("company.json"))
+        else {
+            panic!("expected a missing exemption reason");
+        };
+        assert!(message.contains("exempt VAT needs"), "{message}");
+
+        let invoice = invoice.replace(
+            "\"Kleinunternehmer\",",
+            "\"Kleinunternehmer\", \"exemption_reason\": \"§ 19 UStG\",",
+        );
+        let xml = typstgen::zugferd::xml_from_docgen(&invoice, &fixture("company.json"))
+            .expect("valid exempt invoice");
+        assert!(
+            xml.contains("<ram:CategoryCode>E</ram:CategoryCode>"),
+            "{xml}"
+        );
+        assert!(xml.contains("§ 19 UStG"), "{xml}");
+    }
+
+    #[test]
     fn embeds_the_invoice_into_a_pdf_a3() {
         let temp = tempdir().expect("create temporary project");
         let input = temp.path().join("invoice.typ");
