@@ -56,3 +56,27 @@ bad.typ:2:2: error: unknown variable: unbekannt
 
 Give templates a first-line comment such as `// Offer with price table and terms` so the agent can
 pick the right one from `list_templates`.
+
+## In practice
+
+<figure>
+<video controls preload="none" playsinline width="1920" height="1080" poster="../../../videos/typstgen-mcp-poster.webp" aria-label="Four requests to typstgen through MCP, as a chat with tool calls" style={{ width: "100%", height: "auto" }}>
+<source src="../../../videos/typstgen-mcp.mp4" type="video/mp4" />
+</video>
+<figcaption>Four requests to an assistant with the typstgen server, 1:32, no sound. The chat is staged; every tool call and result is real output of the server, shortened.</figcaption>
+</figure>
+
+1. **An invoice from a template:** "Make invoice 2026-0142 for ACME GmbH from our template – relaunch
+   8,400, hosting 12 × 49, 6 support hours at 95 – and save it to out/." `list_templates` finds
+   `invoice.typ` by its first comment (inputs: customer, number, items); `compile` with those
+   `inputs` writes `out/invoice-2026-0142-acme.pdf` (1 page), and `preview` shows the page.
+2. **A broken build:** "report.typ doesn't build anymore – fix it." `check` reports
+   `report.typ:6:3: error: unexpected argument: author`; the assistant removes the argument the
+   layout no longer takes, and `check` returns `ok, 2 pages`.
+3. **A table off the page:** "The table on page 2 runs off the page." `check` had said `ok`, but
+   `preview` of page 2 shows the table running past the right edge. After the number columns size
+   to their content, a second `preview` shows it inside the text area.
+4. **Archiving as PDF/A:** "Archive the annual report as PDF/A." `compile` with
+   `pdf_standards: ["a-2b"]` fails with `PDF/A-2b error: document contains an attached file`,
+   pointing at the attached CSV. With `["a-3b"]`, which allows attachments, and a fixed
+   `creation_timestamp`, it writes `out/annual-report-2025.pdf` (2 pages).
