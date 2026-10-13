@@ -6,6 +6,12 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-13
+
+### Breaking
+
+- `archive::Report` has a new public field `notes`; struct literals need it.
+
 ### Added
 
 - `verify` accepts a PDF signed after recording: when the stored PDF starts with the recorded
