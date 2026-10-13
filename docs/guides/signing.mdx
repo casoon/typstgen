@@ -1,0 +1,108 @@
+---
+title: Signing
+description: Sign a typstgen PDF with pyHanko (PAdES with a timestamp), keep PDF/A and ZUGFeRD valid, and still verify the archived build; when a signature adds nothing and when only a qualified one helps.
+order: 8
+---
+
+typstgen does not sign PDFs. A signer appends the signature to a finished PDF as an incremental
+update, so the bytes typstgen wrote stay unchanged in front of it. That keeps the build
+reproducible and lets [`verify`](../archiving/) recognise the signed file.
+
+For signing we recommend [pyHanko](https://github.com/MatthiasValvekens/pyHanko) (MIT, Python):
+PAdES baseline signatures up to B-LTA, RFC 3161 timestamps, PKCS#11 tokens and remote signing,
+and every write is an incremental update.
+
+## Do you need a signature?
+
+This is background, not legal advice; as of October 2026, for Germany:
+
+- **Invoices**, including ZUGFeRD: no. § 14 Abs. 3 UStG names a qualified electronic signature
+  only as one way to ensure authenticity and integrity; an internal control procedure that
+  matches the invoice with order, delivery and payment is enough (UStAE 14.4, BMF letter of
+  15 October 2025). If an invoice is sent with a qualified signature, the signature has to be
+  kept with it.
+- **Archiving** under the GoBD: no. A signature or timestamp is one possible measure for
+  unalterability, not a requirement. The [archive manifest](../archiving/) and storage that cannot
+  be overwritten are the usual route.
+- **Offers, order confirmations, most contracts**: no form or text form (§ 126b BGB), so no
+  signature is required. A signature only adds evidential weight.
+- **Contracts that need the written form**: the electronic form needs a *qualified* electronic
+  signature (§ 126a BGB). Some declarations, such as terminating employment (§ 623 BGB), cannot be
+  made electronically at all.
+
+A certificate you create yourself gives at most an *advanced* signature under eIDAS (Art. 26).
+Qualified signatures, seals and timestamps come only from a qualified trust service provider,
+for example as a signature card or a remote signing service; pyHanko works with both through
+PKCS#11.
+
+## Sign a PDF
+
+Use pyHanko 0.35.2 or later: earlier versions rewrote the XMP metadata of PDF/A files with an
+extension schema, such as ZUGFeRD invoices, and broke their PDF/A conformance.
+
+```sh
+pip install pyhanko pyhanko-cli
+typstgen compile rechnung.typ --pdf-standard a-3b --creation-timestamp 1737500000 \
+  --zugferd rechnung.json --company company.json --manifest archive.json
+pyhanko sign addsig --field Signature1 --use-pades \
+  --timestamp-url http://timestamp.digicert.com \
+  pemder --key key.pem --cert cert.pem rechnung.pdf rechnung-signiert.pdf
+```
+
+`--use-pades` writes a PAdES signature, `--timestamp-url` adds a timestamp from an RFC 3161
+timestamp authority (TSA), so the signing time does not rest on the signer's clock. With a
+PKCS#12 file use `pkcs12` instead of `pemder`, with a token or signature card `pkcs11`.
+
+## Check the result
+
+```sh
+pyhanko sign validate --pretty-print --trust cert.pem rechnung-signiert.pdf
+verapdf --flavour 3b rechnung-signiert.pdf
+java -jar Mustang-CLI.jar --action validate --source rechnung-signiert.pdf
+```
+
+Run on 12 October 2026 with typstgen 0.4.1, pyHanko 0.37.0, veraPDF 1.30 and Mustang 2.26.0 on
+the example invoice of [business-templates](https://github.com/casoon/typst-business-templates):
+the signature is valid and timestamped, and the PDF stays PDF/A-3b and a valid EN 16931 invoice.
+
+For an independent check, the European Commission's
+[DSS demo](https://ec.europa.eu/digital-building-blocks/DSS/webapp-demo/) validates PAdES
+signatures against the ETSI standards.
+
+## Verify the archive after signing
+
+Replace the archived PDF with the signed one. `verify` finds the recorded build at the start of
+the file and reports what was appended:
+
+```text
+$ typstgen verify archive.json
+ok      rechnung.pdf
+        note: signed after recording: the recorded PDF is unchanged, 1 revision(s) with a signature appended; check the signature with a PDF signature validator
+1 of 1 documents verified
+```
+
+An appended revision can also change what the PDF shows, so `verify` only proves that the
+recorded build is intact. Whether the signature is valid and what the signed revision changes is
+the job of the signature validator. Revisions appended without a signature fail `verify`.
+
+## Timestamp authorities
+
+| TSA | URL | Notes |
+| --- | --- | --- |
+| DigiCert | `http://timestamp.digicert.com` | free, widely used |
+| Sectigo | `http://timestamp.sectigo.com` | free; at least 15 seconds between scripted requests |
+| freetsa.org | `https://freetsa.org/tsr` | free, no service level; good for tests |
+
+None of these is a *qualified* timestamp under eIDAS. Qualified timestamps come from qualified
+trust service providers such as D-Trust, usually under contract; the
+[EU trusted list](https://eidas.ec.europa.eu/efda/tl-browser/) lists them.
+
+## Why not a Rust signer?
+
+In October 2026 we tested underskrift 0.1.4, the most complete PDF signing crate on crates.io, on
+the same invoice. Its signature was valid, but the trailer of its update had no `/ID`, which
+PDF/A forbids, so the invoice failed veraPDF and Mustang; timestamps set in its signing options
+were not applied. Of the other crates, pdf_signer is GPL-licensed and pdf_signing has not been
+updated since 2024. A signing feature in typstgen would add little: a self-made certificate only
+gives an advanced signature, and anything with legal weight needs a trust service provider,
+which pyHanko already supports.

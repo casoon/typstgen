@@ -7,6 +7,9 @@
 //! data, images, package files) and of every font file loaded from disk.
 //! Paths are relative to the working directory, like the paths in
 //! `typstgen.toml`, so record and verify from the project directory.
+//!
+//! A PDF signed after recording still verifies: signers append an incremental
+//! update, so the recorded bytes stay in front of the signed file.
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -75,6 +78,9 @@ pub struct Report {
     pub document: String,
     /// Empty when the PDF is unchanged and the rebuild is identical.
     pub problems: Vec<String>,
+    /// Remarks that are not problems, such as a signature appended after
+    /// recording.
+    pub notes: Vec<String>,
 }
 
 fn sha256(bytes: &[u8]) -> String {
@@ -94,6 +100,38 @@ fn display(path: &Path) -> String {
         .unwrap_or(absolute)
         .display()
         .to_string()
+}
+
+/// Revisions appended to the recorded PDF, as found by [`appended_revisions`].
+struct Appended {
+    revisions: usize,
+    signed: bool,
+}
+
+/// Finds the recorded PDF as the first part of `pdf`, ending at one of its
+/// `%%EOF` markers, and describes what was appended after it. Signers and PDF
+/// editors save changes as incremental updates, which keep the original bytes.
+fn appended_revisions(pdf: &[u8], recorded_sha256: &str) -> Option<Appended> {
+    const EOF: &[u8] = b"%%EOF";
+    let mut from = 0;
+    while let Some(offset) = pdf[from..].windows(EOF.len()).position(|w| w == EOF) {
+        let marker_end = from + offset + EOF.len();
+        // The recorded file may end right after the marker or with a line end.
+        for line_end in [&b""[..], b"\n", b"\r\n", b"\r"] {
+            let end = marker_end + line_end.len();
+            if pdf[marker_end..].starts_with(line_end) && sha256(&pdf[..end]) == recorded_sha256 {
+                let tail = &pdf[end..];
+                return Some(Appended {
+                    revisions: tail.windows(EOF.len()).filter(|w| *w == EOF).count(),
+                    // A signature or document timestamp has a /ByteRange, which
+                    // is never compressed into an object stream.
+                    signed: tail.windows(10).any(|w| w == b"/ByteRange"),
+                });
+            }
+        }
+        from = marker_end;
+    }
+    None
 }
 
 fn typst_version() -> String {
@@ -222,6 +260,10 @@ pub fn compile_and_record(manifest: &Path, job: &Job, config: &Config) -> Result
 /// sources and fonts are the recorded ones, and a rebuild with the recorded
 /// options produces the same bytes.
 ///
+/// A stored PDF that starts with the recorded bytes and has revisions with a
+/// signature appended (a PDF signed after recording) passes with a note in
+/// [`Report::notes`]; appended revisions without a signature are a problem.
+///
 /// With `rebuild_only`, the stored PDFs are not read: the rebuild is only
 /// compared with the recorded SHA-256. That is the check for a CI job, which
 /// has the sources from version control but not the archived PDFs.
@@ -241,10 +283,28 @@ pub fn verify(manifest: &Path, rebuild_only: bool) -> Result<Vec<Report>> {
     let mut reports = Vec::new();
     for (document, entry) in &archive.documents {
         let mut problems = Vec::new();
+        let mut notes = Vec::new();
         if !rebuild_only {
             match std::fs::read(document) {
                 Ok(pdf) if sha256(&pdf) == entry.sha256 => {}
-                Ok(_) => problems.push("the PDF differs from the recorded one".to_owned()),
+                Ok(pdf) => match appended_revisions(&pdf, &entry.sha256) {
+                    Some(Appended {
+                        revisions,
+                        signed: true,
+                    }) => notes.push(format!(
+                        "signed after recording: the recorded PDF is unchanged, \
+                         {revisions} revision(s) with a signature appended; \
+                         check the signature with a PDF signature validator"
+                    )),
+                    Some(Appended {
+                        revisions,
+                        signed: false,
+                    }) => problems.push(format!(
+                        "changed after recording: {revisions} revision(s) without a signature \
+                         appended to the recorded PDF"
+                    )),
+                    None => problems.push("the PDF differs from the recorded one".to_owned()),
+                },
                 Err(error) => problems.push(format!("the PDF cannot be read: {error}")),
             }
         }
@@ -311,6 +371,7 @@ pub fn verify(manifest: &Path, rebuild_only: bool) -> Result<Vec<Report>> {
         reports.push(Report {
             document: document.clone(),
             problems,
+            notes,
         });
     }
     Ok(reports)

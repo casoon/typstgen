@@ -719,4 +719,43 @@ mod archive {
             "{problems:?}"
         );
     }
+
+    #[test]
+    fn accepts_a_signature_appended_after_recording() {
+        let temp = tempdir().expect("create temporary project");
+        let dir = temp.path();
+        fs::write(dir.join("letter.typ"), "Hello #sys.inputs.to").expect("write input");
+        let manifest = dir.join("archive.json");
+        compile_and_record(&manifest, &job(dir), &config_with(vec![])).expect("record build");
+        let recorded = fs::read(dir.join("letter.pdf")).expect("read pdf");
+
+        // What a signer appends: an incremental update with a signature.
+        let mut signed = recorded.clone();
+        signed.extend_from_slice(
+            b"\n9 0 obj\n<< /Type /Sig /ByteRange [0 10 20 30] /Contents <00> >>\nendobj\n\
+              trailer\n<< /Size 10 /Prev 0 >>\nstartxref\n0\n%%EOF\n",
+        );
+        fs::write(dir.join("letter.pdf"), &signed).expect("write signed pdf");
+        let report = &verify(&manifest, false).expect("verify")[0];
+        assert!(report.problems.is_empty(), "{report:?}");
+        assert!(
+            report.notes.iter().any(|n| n.starts_with(
+                "signed after recording: the recorded PDF is unchanged, 1 revision(s)"
+            )),
+            "{report:?}"
+        );
+
+        // An appended revision without a signature changes the document.
+        let mut edited = recorded;
+        edited.extend_from_slice(b"\n9 0 obj\n(changed)\nendobj\n%%EOF\n");
+        fs::write(dir.join("letter.pdf"), &edited).expect("write edited pdf");
+        let report = &verify(&manifest, false).expect("verify")[0];
+        assert!(
+            report
+                .problems
+                .iter()
+                .any(|p| p.starts_with("changed after recording: 1 revision(s) without")),
+            "{report:?}"
+        );
+    }
 }

@@ -119,5 +119,6 @@ Options:
 `--rebuild-only` skips reading the stored PDFs and only compares the rebuild with the recorded
 SHA-256, for CI checkouts that do not contain the archived PDFs.
 
-Prints one line per document (`ok` or `FAILED` with the reasons) and exits with code `1` if any
-document fails. Described in [Archiving](../../guides/archiving/).
+Prints one line per document (`ok` or `FAILED` with the reasons, then any `note:` lines) and exits
+with code `1` if any document fails. A stored PDF that was signed after recording passes with a
+note, see [Signing](../../guides/signing/). Described in [Archiving](../../guides/archiving/).
