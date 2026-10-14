@@ -21,7 +21,7 @@ Options:
       --no-pdf-tags
           Write an untagged PDF (smaller, but without document structure)
       --zugferd <INVOICE_JSON>
-          Embed a ZUGFeRD / Factur-X invoice (EN 16931) built from this docgen invoice JSON; needs --company and a PDF/A-3 standard
+          Embed a ZUGFeRD / Factur-X invoice (EN 16931) built from this business-templates invoice JSON; needs --company and a PDF/A-3 standard
       --company <COMPANY_JSON>
           company.json with the seller's data, for --zugferd
       --manifest <MANIFEST>

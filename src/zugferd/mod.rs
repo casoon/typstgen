@@ -1,7 +1,7 @@
 //! ZUGFeRD / Factur-X e-invoices (profile EN 16931), `zugferd` feature.
 //!
-//! The invoice data is docgen's invoice JSON plus company.json, the same
-//! files the invoice template renders. [`xml_from_docgen`] checks them and
+//! The invoice data is the business-templates invoice JSON plus company.json,
+//! the same files its invoice template renders. [`xml_from_docgen`] checks them and
 //! writes the CII XML; [`CompileOptions::zugferd_xml`](crate::CompileOptions)
 //! embeds it into a PDF/A-3 as `factur-x.xml` and adds the Factur-X metadata.
 //!
@@ -19,7 +19,7 @@ pub use pdf::FILE_NAME;
 
 use crate::{Error, Result};
 
-/// Checks a docgen invoice and returns its CII XML (EN 16931 profile).
+/// Checks a business-templates invoice and returns its CII XML (EN 16931 profile).
 ///
 /// # Errors
 ///

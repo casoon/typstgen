@@ -5,8 +5,8 @@ order: 6
 ---
 
 A ZUGFeRD (Factur-X) invoice is a PDF/A-3 that carries the invoice data a second time, as
-machine-readable XML (`factur-x.xml`, UN/CEFACT CII). typstgen builds that XML from the docgen
-invoice JSON and `company.json`, the same files the invoice template of
+machine-readable XML (`factur-x.xml`, UN/CEFACT CII). typstgen builds that XML from the invoice
+JSON and `company.json`, the same files the invoice template of the Typst package
 [business-templates](https://github.com/casoon/typst-business-templates) renders, so the PDF and
 the XML cannot drift apart. The profile is EN 16931 (ZUGFeRD "Comfort").
 
@@ -33,7 +33,7 @@ A PDF/A-3 standard (`a-3b`, `a-3u` or `a-3a`) is required.
 
 ## What is read from the JSON
 
-| EN 16931 | docgen JSON |
+| EN 16931 | business-templates JSON |
 | --- | --- |
 | Invoice number, date (BT-1, BT-2) | `metadata.invoice_number`, `metadata.invoice_date` |
 | Delivery date (BT-72) | `metadata.delivery_date` (optional) |
@@ -53,7 +53,7 @@ VAT categories come from `vat_rate.code`:
 | --- | --- | --- |
 | `Standard`, `Reduced` (or any rate above 0) | S | a rate above 0 |
 | `Zero` | Z | rate 0 |
-| `Exempt` | E | rate 0 and `exemption_reason` (text) or `exemption_reason_code` |
+| `Exempt` (alias `Kleinunternehmer`) | E | rate 0 and `exemption_reason` (text) or `exemption_reason_code` |
 | `ReverseCharge` | AE | rate 0 and the buyer's `recipient.vat_id` |
 
 ## Checks
@@ -77,10 +77,10 @@ Check the result with an external validator before you send invoices, for exampl
 java -jar Mustang-CLI.jar --action validate --source rechnung.pdf
 ```
 
-Invoices built from the docgen examples, with mixed VAT rates, reverse charge and an exempt
-invoice, were validated with Mustang 2.26.0 and veraPDF 1.30 on 10 October 2026 without errors.
-Without `delivery_date` Mustang reports a warning (PEPPOL-EN16931-R008, empty delivery element);
-the invoice stays valid.
+Invoices built from the business-templates examples, with mixed VAT rates, reverse charge and an
+exempt invoice, were validated with Mustang 2.26.0 and veraPDF 1.30 on 10 October 2026 without
+errors. Without `delivery_date` Mustang reports a warning (PEPPOL-EN16931-R008, empty delivery
+element); the invoice stays valid.
 
 ## From an AI agent
 

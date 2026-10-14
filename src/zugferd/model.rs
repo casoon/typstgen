@@ -237,7 +237,7 @@ fn tax(item: &Value, buyer_has_vat_id: bool, problems: &mut Problems, label: &st
     let reason_code = optional(item, "vat_rate.exemption_reason_code");
     let category = match code.as_str() {
         "reversecharge" | "reverse_charge" | "reverse-charge" => "AE",
-        "exempt" | "smallbusiness" | "small_business" => "E",
+        "exempt" | "smallbusiness" | "small_business" | "kleinunternehmer" => "E",
         "zero" => "Z",
         _ if rate.is_zero() => {
             problems.add(format!(

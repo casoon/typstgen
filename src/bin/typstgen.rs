@@ -45,7 +45,7 @@ enum Commands {
         /// Write an untagged PDF (smaller, but without document structure)
         #[arg(long)]
         no_pdf_tags: bool,
-        /// Embed a ZUGFeRD / Factur-X invoice (EN 16931) built from this docgen invoice JSON;
+        /// Embed a ZUGFeRD / Factur-X invoice (EN 16931) built from this business-templates invoice JSON;
         /// needs --company and a PDF/A-3 standard
         #[cfg(feature = "zugferd")]
         #[arg(long, value_name = "INVOICE_JSON", requires = "company")]
