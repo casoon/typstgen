@@ -14,7 +14,6 @@ export default defineConfig({
       tagline: 'Typst to PDF with an embedded engine',
       website: 'https://typst.casoon.de',
       repo: 'casoon/typstgen',
-      version: '0.5.0',
       license: 'MIT',
       branch: 'master',
       packages: [
