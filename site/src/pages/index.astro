@@ -12,6 +12,7 @@ import {
   Terminal,
 } from '@casoon/pages-theme/components';
 import Base from '@casoon/pages-theme/layouts/Base.astro';
+import config from 'virtual:casoon-pages/config';
 import compileHelp from '../../../examples/compile-help.txt?raw';
 import { pdfViewer } from '../showcase';
 
@@ -37,7 +38,7 @@ typstgen compile letter.typ
     />
     <Badges>
       <Badge>MIT</Badge>
-      <Badge>crates.io 0.5.0</Badge>
+      <Badge>crates.io {config.version}</Badge>
       <Badge>Rust 1.92+</Badge>
       <Badge>Typst 0.15</Badge>
     </Badges>
