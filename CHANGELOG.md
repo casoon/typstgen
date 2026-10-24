@@ -28,7 +28,7 @@ All notable changes to this project are documented in this file. The format is b
 - `verify` accepts a PDF signed after recording: when the stored PDF starts with the recorded
   bytes and the appended incremental updates carry a signature, the document passes with a note.
   Revisions appended without a signature fail. `archive::Report` has a new public field `notes`.
-- Guide [Signing](docs/guides/signing.mdx): sign with pyHanko (PAdES, RFC 3161 timestamp), keep
+- Guide [Signing](https://casoon.github.io/typstgen/docs/guides/signing/): sign with pyHanko (PAdES, RFC 3161 timestamp), keep
   PDF/A and ZUGFeRD valid, and when a signature matters in Germany. The archiving guide shows how
   to timestamp `archive.json` with `openssl ts`.
 
