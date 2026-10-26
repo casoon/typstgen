@@ -1,0 +1,90 @@
+{
+  "schemaVersion": 1,
+  "type": "flow",
+  "title": "Where an import is looked up",
+  "description": "Each imported file is looked up on its own. typstgen first checks the folder that contains the input file, then every existing template directory from template_paths, in config order. The first file that exists is used. If it is found nowhere, compilation fails with file not found, the virtual path that was searched and the position of the import.",
+  "source": "src/config.rs (template_roots), src/world.rs, docs/guides/templates.mdx, examples/missing-import.txt",
+  "width": 720,
+  "height": 620,
+  "flow": {
+    "nodes": [
+      {
+        "id": "import",
+        "label": "#import \"letterhead.typ\"",
+        "kind": "start"
+      },
+      {
+        "id": "here",
+        "label": "Next to the document?",
+        "sublabel": "folder of the input file",
+        "kind": "decision"
+      },
+      {
+        "id": "first",
+        "label": "In the first template dir?",
+        "sublabel": "template_paths[0]",
+        "kind": "decision"
+      },
+      {
+        "id": "next",
+        "label": "In the next one?",
+        "sublabel": "in config order",
+        "kind": "decision"
+      },
+      {
+        "id": "use",
+        "label": "First match is used",
+        "kind": "end"
+      },
+      {
+        "id": "error",
+        "label": "file not found",
+        "sublabel": "searched at /letterhead.typ",
+        "kind": "end"
+      }
+    ],
+    "edges": [
+      {
+        "from": "import",
+        "to": "here"
+      },
+      {
+        "from": "here",
+        "to": "use",
+        "label": "yes"
+      },
+      {
+        "from": "here",
+        "to": "first",
+        "label": "no"
+      },
+      {
+        "from": "first",
+        "to": "use",
+        "label": "yes"
+      },
+      {
+        "from": "first",
+        "to": "next",
+        "label": "no"
+      },
+      {
+        "from": "next",
+        "to": "use",
+        "label": "yes"
+      },
+      {
+        "from": "next",
+        "to": "error",
+        "label": "none left"
+      }
+    ],
+    "mainPath": [
+      "import",
+      "here",
+      "first",
+      "use"
+    ],
+    "orientation": "portrait"
+  }
+}

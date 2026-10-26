@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "type": "flow",
+  "title": "How typstgen works",
+  "description": "You run typstgen compile, or an AI agent calls the MCP server started with typstgen mcp. Both hand the .typ file to the Typst engine compiled into typstgen, which resolves imports from the template directories in typstgen.toml. The result is a PDF next to the document, a PNG of one page for the MCP preview tool, or the Typst errors with file, line and column and exit code 1.",
+  "source": "src/bin/typstgen.rs (compile, mcp), src/mcp.rs (check, preview, compile, list_templates), src/config.rs (template_paths), src/lib.rs (compile_with_options, render_png)",
+  "width": 1180,
+  "height": 340,
+  "flow": {
+    "nodes": [
+      { "id": "cli", "label": "typstgen compile", "sublabel": "CLI", "kind": "start" },
+      { "id": "agent", "label": "AI agent", "sublabel": "MCP client", "kind": "external" },
+      { "id": "mcp", "label": "typstgen mcp", "sublabel": "check, preview, compile" },
+      { "id": "config", "label": "typstgen.toml", "sublabel": "template_paths", "kind": "store" },
+      { "id": "engine", "label": "Embedded Typst", "sublabel": "typst 0.15, no subprocess" },
+      { "id": "pdf", "label": "PDF", "sublabel": "next to the .typ file", "kind": "end" },
+      { "id": "png", "label": "PNG page", "sublabel": "preview tool", "kind": "io" },
+      { "id": "errors", "label": "Errors", "sublabel": "file:line:column, exit 1", "kind": "end" }
+    ],
+    "edges": [
+      { "from": "cli", "to": "engine" },
+      { "from": "agent", "to": "mcp" },
+      { "from": "mcp", "to": "engine" },
+      { "from": "config", "to": "engine", "label": "imports" },
+      { "from": "engine", "to": "pdf", "label": "compile" },
+      { "from": "engine", "to": "png", "label": "preview" },
+      { "from": "engine", "to": "errors", "label": "on failure" }
+    ],
+    "mainPath": ["cli", "engine", "pdf"],
+    "orientation": "landscape"
+  }
+}

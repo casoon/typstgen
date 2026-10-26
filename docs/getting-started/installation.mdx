@@ -10,6 +10,7 @@ order: 1
     { id: 'cli', label: 'CLI' },
     { id: 'git', label: 'From git' },
     { id: 'library', label: 'Library' },
+    { id: 'mcp', label: 'MCP' },
   ]}
 >
 <div slot="cli">
@@ -31,14 +32,26 @@ cargo install --git https://github.com/casoon/typstgen
 </div>
 <div slot="library">
 
-The default features build the CLI: `cli`, `download` (fetch `@preview` packages) and `mcp` (the
-[MCP server](../../guides/ai-agents/), which brings `tokio` and `rmcp`). Turn them off when you only
-need the library, and add back what you use, for example `png` for page previews:
+The default features build the full CLI: `cli`, `download`, `mcp` (which brings `tokio` and
+`rmcp`), `zugferd` and `archive`, see [Features](#features). Turn them off when you only need the
+library, and add back what you use, for example `png` for page previews:
 
 ```sh
 cargo add typstgen --no-default-features
 cargo add typstgen --no-default-features --features download,png
 ```
+
+</div>
+<div slot="mcp">
+
+The CLI includes the MCP server. Register it with your AI client, for example Claude Code:
+
+```sh
+cargo install typstgen
+claude mcp add typstgen -- typstgen mcp --root .
+```
+
+Its tools and other clients are covered in [AI agents](../../guides/ai-agents/).
 
 </div>
 </Tabs>
@@ -58,6 +71,11 @@ build, see [Fonts](../../guides/fonts/).
 | Feature | Default | Adds |
 | --- | --- | --- |
 | `cli` | yes | The `typstgen` binary (via `clap`) |
+| `download` | yes | Downloads missing `@preview` packages from Typst Universe (native only) |
+| `mcp` | yes | `typstgen mcp`, the [MCP server](../../guides/ai-agents/); enables `cli` and `png` |
+| `zugferd` | yes | ZUGFeRD / Factur-X invoice data, see [E-invoices](../../guides/e-invoices/) |
+| `archive` | yes | Build manifests and `typstgen verify`, see [Archiving](../../guides/archiving/) (native only) |
+| `png` | no | Page previews as PNG (`render_png`) |
 | `wasm` | no | A `wasm-bindgen` export for JavaScript hosts |
 
 The Wasm build is covered in the [Rust and Wasm reference](../../reference/library/#wasm).

@@ -1,0 +1,24 @@
+# Plays the captured runs in *.txt (see capture.sh): the template directory from typstgen.toml,
+# a letter that imports its letterhead from there, and a document whose import exists nowhere.
+version: 1
+terminal:
+  title: typstgen
+  cols: 72
+  rows: 11
+  theme: catppuccin-mocha
+steps:
+  - run: grep template_paths typstgen.toml
+  - show: config-line.txt
+    lang: text
+  - run: typstgen compile letter.typ
+  - wait: 600
+  - show: compile-letter.txt
+    lang: text
+  - run: typstgen compile missing-import.typ
+  - wait: 600
+  - show: compile-missing.txt
+    lang: text
+  - run: echo $?
+  - show: exit-missing.txt
+    lang: text
+  - wait: 5000
