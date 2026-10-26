@@ -3,7 +3,7 @@
 # checkout on a temporary copy of examples/, so the committed PDFs stay untouched.
 #   site/captures/capture.sh
 # Rebuild the SVG after a capture:
-#   cd site/captures && npx -y -p @casoon/castwright@0.4.0 -p shiki castwright build compile.terminal.yaml --format svg -o . && npx -y -p @casoon/castwright@0.4.0 -p shiki castwright build compile-narrow.terminal.yaml --format svg -o .
+#   cd site/captures && npx -y -p @casoon/castwright@0.5.0 -p shiki castwright build compile.terminal.yaml --format svg -o . && npx -y -p @casoon/castwright@0.5.0 -p shiki castwright build compile-narrow.terminal.yaml --format svg -o .
 set -euo pipefail
 
 here="$(cd "$(dirname "$0")" && pwd)"
