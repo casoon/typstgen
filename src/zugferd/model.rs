@@ -449,7 +449,7 @@ impl Invoice {
                 problems.add(format!("{label}: quantity or unit_price.amount is missing"));
                 continue;
             };
-            let net_amount = quantity.mul(net_price).round2();
+            let net_amount = quantity.mul_money(net_price);
             if let Some(stated) = money(item.get("total")) {
                 if stated.round2() != net_amount {
                     problems.add(format!(
@@ -481,7 +481,7 @@ impl Invoice {
         let breakdown: Vec<TaxBreakdown> = groups
             .into_iter()
             .map(|(tax, basis)| TaxBreakdown {
-                amount: basis.percent(tax.rate).round2(),
+                amount: basis.percent_money(tax.rate),
                 tax,
                 basis,
             })

@@ -22,6 +22,9 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Fixed
 
+- **ZUGFeRD:** Line amounts and tax amounts round directly to cents without a second rounding
+  through four fractional digits, preserving correct results at sub-cent boundaries.
+
 - **ZUGFeRD:** Invalid calendar dates, conflicting currencies and stated tax-group values that
   disagree with the normalized invoice are rejected before CII generation.
 

@@ -223,3 +223,19 @@ fn unsupported_discounts_are_not_silently_ignored() {
         .iter()
         .any(|d| d["path"] == "data.totals.discount_total"));
 }
+
+#[test]
+fn valid_subcent_line_is_not_rounded_twice() {
+    let mut input = request();
+    input["data"]["items"].as_array_mut().unwrap().truncate(1);
+    let line = &mut input["data"]["items"][0];
+    line["quantity"] = json!("0.5");
+    line["unit_price"]["amount"] = json!("0.0099");
+    line["total"]["amount"] = json!("0.00");
+    input["data"]["totals"] = json!({"subtotal":{"amount":"0.00","currency":"EUR"},
+        "vat_total":{"amount":"0.00","currency":"EUR"},"total":{"amount":"0.00","currency":"EUR"}});
+    let report = validate_document(&catalog(), &input);
+    // 0.5 × 0.0099 = 0.00495 rounds directly to 0.00, not via 0.0050 to 0.01.
+    assert_eq!(report["status"], "ready_for_preview", "{report}");
+    assert_eq!(report["normalized"]["lines"][0]["net_amount"], "0");
+}
