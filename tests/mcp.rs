@@ -99,6 +99,28 @@ fn mcp_server_checks_previews_and_compiles() {
             "list_document_profiles",
             json!({"catalog":"../outside.json"}),
         ));
+        fs::write(root.join("invoice-config.json"), json!({"version":1,
+            "presentation":{"language":"en","format_locale":"en-GB","currency":"EUR","layout":"international"},
+            "default_tax":"regular","taxes":{"regular":{"category":"S","rate":"19"}}
+        }).to_string()).unwrap();
+        let company: Value =
+            serde_json::from_str(&fs::read_to_string(root.join("company.json")).unwrap()).unwrap();
+        let mut data: Value =
+            serde_json::from_str(&fs::read_to_string(root.join("invoice.json")).unwrap()).unwrap();
+        for item in data["items"].as_array_mut().unwrap() {
+            item.as_object_mut().unwrap().remove("vat_rate");
+        }
+        data.as_object_mut().unwrap().remove("totals");
+        messages.push(call(
+            12,
+            "prepare_invoice",
+            json!({"config":"invoice-config.json","request":{"company":company,"data":data}}),
+        ));
+        messages.push(call(
+            13,
+            "prepare_invoice",
+            json!({"config":"../outside.json","request":{}}),
+        ));
     }
     let expected = messages.len() - 1;
 
@@ -172,6 +194,13 @@ fn mcp_server_checks_previews_and_compiles() {
             "blocked"
         );
         assert!(is_error(11));
+        assert_eq!(
+            serde_json::from_str::<Value>(&text(12)).unwrap()["status"],
+            "ready_for_preview",
+            "{}",
+            text(12)
+        );
+        assert!(is_error(13));
         assert!(!is_error(7), "{}", text(7));
         let pdf = fs::read(root.join("invoice.pdf")).expect("ZUGFeRD pdf");
         assert!(String::from_utf8_lossy(&pdf).contains("<fx:DocumentFileName>factur-x.xml"));

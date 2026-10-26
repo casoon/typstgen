@@ -23,6 +23,8 @@ mod world;
 
 #[cfg(all(feature = "archive", not(target_arch = "wasm32")))]
 pub mod archive;
+#[cfg(feature = "zugferd")]
+pub mod invoice_config;
 #[cfg(feature = "mcp")]
 pub mod mcp;
 #[cfg(feature = "zugferd")]

@@ -82,6 +82,13 @@ enum Commands {
         catalog: PathBuf,
         request: PathBuf,
     },
+    /// Build invoice values from a user-owned tax and presentation configuration
+    #[cfg(feature = "zugferd")]
+    PrepareInvoice {
+        #[arg(long)]
+        config: PathBuf,
+        request: PathBuf,
+    },
     /// Check the PDFs recorded in a manifest: unchanged, same sources, identical rebuild
     #[cfg(feature = "archive")]
     Verify {
@@ -209,6 +216,10 @@ fn main() -> ExitCode {
         Commands::ValidateDocument { catalog, request } => {
             profile_command(&catalog, Some(&request), "validate", false)
         }
+        #[cfg(feature = "zugferd")]
+        Commands::PrepareInvoice { config, request } => {
+            profile_command(&config, Some(&request), "prepare", false)
+        }
         #[cfg(feature = "archive")]
         Commands::Verify {
             manifest,
@@ -332,6 +343,7 @@ fn profile_command(
         Ok(match action {
             "list" => typstgen::profiles::list_document_profiles(&catalog, drafts),
             "resolve" => typstgen::profiles::resolve_document_profile(&catalog, &input),
+            "prepare" => typstgen::invoice_config::prepare_invoice(&catalog, &input),
             _ => typstgen::profiles::validate_document(&catalog, &input),
         })
     })();

@@ -25,7 +25,8 @@ error (each line names file:line:column), look at a page with `preview`, then `c
 archiving, compile with pdf_standards [\"a-2b\"] (or \"a-3b\" with attachments) and a \
 creation_timestamp so the output is reproducible. For a ZUGFeRD e-invoice pass zugferd {invoice, \
 company} (business-templates JSON files) with pdf_standards [\"a-3b\"]; problems in the data are listed per \
-field. `list_document_profiles`, `resolve_document_profile` and `validate_document` use a package catalog \
+field. `prepare_invoice` reads user-owned tax and presentation configuration. \
+`list_document_profiles`, `resolve_document_profile` and `validate_document` use a package catalog \
 for explicit profile selection and business checks; external validation and transmission stay separate. \
 `list_templates` shows the templates that \
 #import can use. Typst packages (#import \"@preview/name:version\") are resolved automatically.";
@@ -89,6 +90,15 @@ struct ProfileParams {
     selection: serde_json::Value,
     /// Invoice validation envelope: selection, data, company and explicit facts.
     #[serde(default)]
+    request: serde_json::Value,
+}
+
+#[cfg(feature = "zugferd")]
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+struct InvoiceConfigParams {
+    /// Invoice configuration JSON path, relative to the workspace.
+    config: String,
+    /// Invoice envelope with company, data and optional facts.
     request: serde_json::Value,
 }
 
@@ -162,6 +172,22 @@ impl TypstgenServer {
             Ok(catalog) => {
                 success(crate::profiles::validate_document(&catalog, &params.request).to_string())
             }
+            Err(error) => failure(error),
+        })
+    }
+
+    #[cfg(feature = "zugferd")]
+    #[tool(
+        description = "Prepare invoice amounts, tax groups and rendering data using a user-owned configuration file. Selects explicit tax keys without inferring national tax law. Returns the same canonical values for PDF and CII; jurisdiction is not assessed."
+    )]
+    async fn prepare_invoice(
+        &self,
+        Parameters(params): Parameters<InvoiceConfigParams>,
+    ) -> Result<CallToolResult, McpError> {
+        Ok(match self.profile_catalog(&params.config) {
+            Ok(config) => success(
+                crate::invoice_config::prepare_invoice(&config, &params.request).to_string(),
+            ),
             Err(error) => failure(error),
         })
     }

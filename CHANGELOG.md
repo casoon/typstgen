@@ -8,6 +8,9 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Added
 
+- **Invoices:** `prepare-invoice` and the matching Rust/MCP API build canonical invoice values
+  from user-owned tax and presentation configuration without requiring a national catalog.
+
 - **Profiles:** Data-driven document profile listing, selection and invoice validation are shared
   by the Rust library, CLI and MCP, with field diagnostics and separate external-validation states.
 

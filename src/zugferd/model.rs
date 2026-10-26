@@ -609,6 +609,12 @@ impl Invoice {
         }
 
         let mut notes = Vec::new();
+        if let Some(value) = invoice.get("notes") {
+            match serde_json::from_value::<Vec<String>>(value.clone()) {
+                Ok(values) => notes.extend(values),
+                Err(_) => problems.add("notes: expected an array of strings"),
+            }
+        }
         if let Some(project) = optional(invoice, "metadata.project_reference") {
             notes.push(format!("Projekt: {project}"));
         }

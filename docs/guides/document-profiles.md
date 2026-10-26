@@ -48,3 +48,29 @@ The cross-repository synthetic integration check is
 `typst-business-templates/scripts/check-profiles.py --typstgen /path/to/typstgen`, optionally
 with Mustang and veraPDF. Its generated report records external versions, hashes, notices and
 skipped stages. See the package's invoice-profile guide for the supported bounded cases.
+
+## User-owned invoice configuration
+
+For configurable tax rates and presentation without a national catalog, use:
+
+```sh
+typstgen prepare-invoice --config invoice-config.json invoice.json > resolved.json
+```
+
+The configuration declares version `1`, `presentation` (language, format_locale, currency,
+layout), named `taxes` with category/rate/reason, a `default_tax`, optional `required_fields`,
+`notes` and `display_fields`. Each invoice item chooses a `tax` key or uses the default.
+The input is `{company, data, facts?}`; totals may be omitted and are calculated with the
+existing exact-decimal invoice model. Supplied totals and explicit currencies are checked.
+The returned rendering view supplies the same canonical values as CII export.
+
+The Rust function is `typstgen::invoice_config::prepare_invoice(config, request)`;
+MCP exposes `prepare_invoice` with a workspace-relative `config` path and a `request` object.
+A blocked report is unsuccessful at the CLI. Configuration provenance is returned, with
+`checks.jurisdiction = "not_assessed"`: supplied rates do not imply reviewed national rules.
+Amounts use four-place input precision and round half away from zero to two decimal places;
+no currency conversion, gross-price calculation or document allowances are added.
+
+[Configuration schema, editable default and complete example](https://github.com/casoon/typst-business-templates/blob/main/docs/guides/invoice-configuration.md)
+live in the template package repository. This command requires the coordinated unreleased
+build; it is not part of the published 0.5.0 crate.
