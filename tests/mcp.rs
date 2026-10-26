@@ -74,6 +74,54 @@ fn mcp_server_checks_previews_and_compiles() {
             "zugferd": {"invoice": "invoice.json", "company": "company.json"}}),
         ));
     }
+    #[cfg(feature = "zugferd")]
+    {
+        fs::write(root.join("profiles.json"), json!({"version":"1","profiles":[
+            {"id":"de-reference","version":"1","status":"released","country":"DE","tax_case":"reference",
+            "languages":["en"],"format_locales":["en-GB"],"currencies":["EUR"],"layouts":["din"],"outputs":["pdf-preview"],
+            "required":["facts.confirmed"],"rules":[],"sources":[]}
+        ]}).to_string()).unwrap();
+        messages.push(call(
+            8,
+            "list_document_profiles",
+            json!({"catalog":"profiles.json"}),
+        ));
+        messages.push(call(9,"resolve_document_profile",json!({"catalog":"profiles.json","selection":{
+            "profile_id":"de-reference","profile_version":"1","language":"en","format_locale":"en-GB",
+            "currency":"EUR","layout":"din","output_profile":"pdf-preview"}})));
+        messages.push(call(
+            10,
+            "validate_document",
+            json!({"catalog":"profiles.json","request":{}}),
+        ));
+        messages.push(call(
+            11,
+            "list_document_profiles",
+            json!({"catalog":"../outside.json"}),
+        ));
+        fs::write(root.join("invoice-config.json"), json!({"version":1,
+            "presentation":{"language":"en","format_locale":"en-GB","currency":"EUR","layout":"international"},
+            "default_tax":"regular","taxes":{"regular":{"category":"S","rate":"19"}}
+        }).to_string()).unwrap();
+        let company: Value =
+            serde_json::from_str(&fs::read_to_string(root.join("company.json")).unwrap()).unwrap();
+        let mut data: Value =
+            serde_json::from_str(&fs::read_to_string(root.join("invoice.json")).unwrap()).unwrap();
+        for item in data["items"].as_array_mut().unwrap() {
+            item.as_object_mut().unwrap().remove("vat_rate");
+        }
+        data.as_object_mut().unwrap().remove("totals");
+        messages.push(call(
+            12,
+            "prepare_invoice",
+            json!({"config":"invoice-config.json","request":{"company":company,"data":data}}),
+        ));
+        messages.push(call(
+            13,
+            "prepare_invoice",
+            json!({"config":"../outside.json","request":{}}),
+        ));
+    }
     let expected = messages.len() - 1;
 
     let mut child = Command::new(env!("CARGO_BIN_EXE_typstgen"))
@@ -134,6 +182,25 @@ fn mcp_server_checks_previews_and_compiles() {
 
     #[cfg(feature = "zugferd")]
     {
+        assert_eq!(
+            serde_json::from_str::<Value>(&text(8)).unwrap()["profiles"][0]["country"],
+            "DE"
+        );
+        let selected: Value = serde_json::from_str(&text(9)).unwrap();
+        assert_eq!(selected["status"], "resolved");
+        assert_eq!(selected["profile"]["country"], "DE");
+        assert_eq!(
+            serde_json::from_str::<Value>(&text(10)).unwrap()["status"],
+            "blocked"
+        );
+        assert!(is_error(11));
+        assert_eq!(
+            serde_json::from_str::<Value>(&text(12)).unwrap()["status"],
+            "ready_for_preview",
+            "{}",
+            text(12)
+        );
+        assert!(is_error(13));
         assert!(!is_error(7), "{}", text(7));
         let pdf = fs::read(root.join("invoice.pdf")).expect("ZUGFeRD pdf");
         assert!(String::from_utf8_lossy(&pdf).contains("<fx:DocumentFileName>factur-x.xml"));

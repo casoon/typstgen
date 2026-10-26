@@ -78,6 +78,20 @@ let pdf_bytes = compile("example.typ".as_ref(), &config)?;
 std::fs::write("example.pdf", pdf_bytes)?;
 ```
 
+## Invoice preparation (development build)
+
+The source build also exposes `prepare-invoice --config invoice-config.json invoice.json`,
+shared with the Rust library and MCP. User-owned configuration selects named VAT taxes or
+additive sales-tax components, required fields, notes and presentation; missing totals are
+calculated with exact decimal arithmetic. VAT values can feed the CII adapter; sales-tax
+invoices return PDF/component data and are excluded from CII export.
+
+These commands are **not in the published 0.5.0 crate**. The template package pins the
+coordinated Git revision in
+[tool-versions.json](https://github.com/casoon/typst-business-templates/blob/main/tool-versions.json).
+See [document profiles and invoice configuration](docs/guides/document-profiles.md) for CLI,
+Rust and MCP contracts. National applicability and transmission are separate concerns.
+
 ## Wasm
 
 Build with `cargo build --target wasm32-unknown-unknown --no-default-features --features wasm`.

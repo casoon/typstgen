@@ -8,6 +8,15 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Added
 
+- **Invoices:** Configurations support US presentation choices and additive sales-tax components,
+  with separate taxable bases and rounded amounts. Sales-tax invoices are excluded from CII export.
+
+- **Invoices:** `prepare-invoice` and the matching Rust/MCP API build canonical invoice values
+  from user-owned tax and presentation configuration without requiring a national catalog.
+
+- **Profiles:** Data-driven document profile listing, selection and invoice validation are shared
+  by the Rust library, CLI and MCP, with field diagnostics and separate external-validation states.
+
 - ZUGFeRD: VAT code `Kleinunternehmer` is accepted as an alias for `Exempt` (category E), as used
   by older invoice JSON files. It still needs `exemption_reason` or `exemption_reason_code`.
 
@@ -25,6 +34,25 @@ All notable changes to this project are documented in this file. The format is b
   the MCP setup and lists every Cargo feature, and the
   [templates guide](https://casoon.github.io/typstgen/docs/guides/templates/) shows the import
   lookup order as a diagram.
+
+### Fixed
+
+- **Profiles:** Explicit invoice payment-account details also supply the PDF footer's bank name,
+  instead of retaining the company default bank name when an account is overridden.
+
+- **ZUGFeRD:** Line amounts and tax amounts round directly to cents without a second rounding
+  through four fractional digits, preserving correct results at sub-cent boundaries.
+
+- **ZUGFeRD:** Invalid calendar dates, conflicting currencies and stated tax-group values that
+  disagree with the normalized invoice are rejected before CII generation.
+
+- **Profiles:** Malformed/conflicting optional dates and unsupported invoice discounts block the
+  rendering view; seller diagnostics point to the company input fields.
+
+### Security
+
+- **Dependencies:** Updated rustls, rustls-webpki and webpki-roots to patched versions, Tokio to
+  1.53.3 and the withdrawn yoke-derive version to 0.8.4; no RustSec vulnerabilities remain in the lockfile.
 
 ## [0.5.0] - 2026-10-13
 

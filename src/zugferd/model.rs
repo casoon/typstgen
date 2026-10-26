@@ -3,12 +3,13 @@
 
 use std::collections::BTreeMap;
 
+use serde::Serialize;
 use serde_json::Value;
 
 use super::decimal::Dec;
 
 /// A postal address with an ISO 3166-1 country code.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Address {
     pub line: String,
     pub postcode: String,
@@ -16,7 +17,7 @@ pub struct Address {
     pub country: String,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Party {
     pub name: String,
     /// BT-46 for the buyer; unused for the seller.
@@ -33,7 +34,7 @@ pub struct Party {
 }
 
 /// VAT category (UNTDID 5305) with what EN 16931 needs for it.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize)]
 pub struct Tax {
     /// S, Z, E or AE.
     pub category: &'static str,
@@ -43,7 +44,7 @@ pub struct Tax {
     pub exemption_code: Option<String>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Line {
     pub id: String,
     pub name: String,
@@ -56,21 +57,21 @@ pub struct Line {
     pub tax: Tax,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct TaxBreakdown {
     pub tax: Tax,
     pub basis: Dec,
     pub amount: Dec,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Payment {
     pub iban: String,
     pub bic: Option<String>,
     pub account_name: Option<String>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Invoice {
     pub number: String,
     /// YYYYMMDD.
@@ -102,10 +103,14 @@ impl Problems {
     }
 
     fn text(&mut self, value: &Value, path: &str) -> Option<String> {
+        self.text_at(value, path, path)
+    }
+
+    fn text_at(&mut self, value: &Value, path: &str, diagnostic_path: &str) -> Option<String> {
         match lookup(value, path).and_then(Value::as_str).map(str::trim) {
             Some(text) if !text.is_empty() => Some(text.to_owned()),
             _ => {
-                self.add(format!("{path} is missing"));
+                self.add(format!("{diagnostic_path} is missing"));
                 None
             }
         }
@@ -141,7 +146,24 @@ fn date(value: Option<&Value>) -> Option<String> {
         && [year, month, day]
             .iter()
             .all(|part| part.chars().all(|c| c.is_ascii_digit()));
-    valid.then(|| format!("{year}{month}{day}"))
+    let calendar_valid = year
+        .parse::<i32>()
+        .ok()
+        .zip(month.parse::<u32>().ok())
+        .zip(day.parse::<u32>().ok())
+        .and_then(|((year, month), day)| chrono::NaiveDate::from_ymd_opt(year, month, day))
+        .is_some();
+    (valid && calendar_valid).then(|| format!("{year}{month}{day}"))
+}
+
+fn optional_date(value: Option<&Value>, path: &str, problems: &mut Problems) -> Option<String> {
+    let parsed = date(value);
+    if value.is_some_and(|value| !value.is_null()) && parsed.is_none() {
+        problems.add(format!(
+            "{path}: invalid calendar date (expected YYYY-MM-DD)"
+        ));
+    }
+    parsed
 }
 
 /// Money object `{"amount": "1400", "currency": "EUR"}` or a plain number.
@@ -258,7 +280,7 @@ fn tax(item: &Value, buyer_has_vat_id: bool, problems: &mut Problems, label: &st
             "{label}: exempt VAT needs vat_rate.exemption_reason (text) or exemption_reason_code"
         )),
         "AE" if !buyer_has_vat_id => {
-            problems.add("reverse charge needs recipient.vat_id (the buyer's VAT ID)")
+            problems.add("recipient.vat_id: required for reverse charge (the buyer's VAT ID)")
         }
         _ => {}
     }
@@ -278,26 +300,35 @@ fn tax(item: &Value, buyer_has_vat_id: bool, problems: &mut Problems, label: &st
     }
 }
 
-fn address(value: &Value, prefix: &str, problems: &mut Problems) -> Address {
+fn address(value: &Value, prefix: &str, diagnostic_root: &str, problems: &mut Problems) -> Address {
+    let label = format!("{diagnostic_root}{prefix}");
     let street = problems
-        .text(value, &format!("{prefix}.street"))
+        .text_at(
+            value,
+            &format!("{prefix}.street"),
+            &format!("{label}.street"),
+        )
         .unwrap_or_default();
     let number = optional(value, &format!("{prefix}.house_number")).unwrap_or_default();
     let country = optional(value, &format!("{prefix}.country_code"))
         .or_else(|| optional(value, &format!("{prefix}.country")));
     let country = country_code(country.as_deref()).unwrap_or_else(|| {
         problems.add(format!(
-            "{prefix}.country: unknown country, set {prefix}.country_code (ISO 3166-1, e.g. \"DE\")"
+            "{label}.country: unknown country, set {label}.country_code (ISO 3166-1, e.g. \"DE\")"
         ));
         String::new()
     });
     Address {
         line: format!("{street} {number}").trim().to_owned(),
         postcode: problems
-            .text(value, &format!("{prefix}.postal_code"))
+            .text_at(
+                value,
+                &format!("{prefix}.postal_code"),
+                &format!("{label}.postal_code"),
+            )
             .unwrap_or_default(),
         city: problems
-            .text(value, &format!("{prefix}.city"))
+            .text_at(value, &format!("{prefix}.city"), &format!("{label}.city"))
             .unwrap_or_default(),
         country,
     }
@@ -308,6 +339,25 @@ impl Invoice {
     /// invoice JSON, `company` that of company.json. Every problem found is
     /// returned, one per line.
     pub fn from_docgen(invoice: &Value, company: &Value) -> Result<Invoice, Vec<String>> {
+        if invoice.get("tax_model").is_some_and(|model| model != "vat") {
+            return Err(vec!["tax_model: CII export only supports VAT invoices; sales-tax components cannot be represented by this adapter".to_owned()]);
+        }
+        Self::from_data(invoice, company, true)
+    }
+
+    /// Validate shared net amounts and parties before adding sales-tax components.
+    pub(crate) fn from_sales_tax_base(
+        invoice: &Value,
+        company: &Value,
+    ) -> Result<Invoice, Vec<String>> {
+        Self::from_data(invoice, company, false)
+    }
+
+    fn from_data(
+        invoice: &Value,
+        company: &Value,
+        require_tax_registration: bool,
+    ) -> Result<Invoice, Vec<String>> {
         let mut problems = Problems(Vec::new());
 
         let number = problems
@@ -317,8 +367,24 @@ impl Invoice {
             problems.add("metadata.invoice_date is missing or not a date (YYYY-MM-DD)");
             String::new()
         });
-        let due_date = date(lookup(invoice, "payment.due_date"))
-            .or_else(|| date(lookup(invoice, "metadata.due_date")));
+        let payment_due = optional_date(
+            lookup(invoice, "payment.due_date"),
+            "payment.due_date",
+            &mut problems,
+        );
+        let metadata_due = optional_date(
+            lookup(invoice, "metadata.due_date"),
+            "metadata.due_date",
+            &mut problems,
+        );
+        if payment_due
+            .as_ref()
+            .zip(metadata_due.as_ref())
+            .is_some_and(|(payment, metadata)| payment != metadata)
+        {
+            problems.add("metadata.due_date: differs from payment.due_date");
+        }
+        let due_date = payment_due.or(metadata_due);
         let currency = lookup(invoice, "totals.total.currency")
             .and_then(Value::as_str)
             .or_else(|| lookup(company, "default_terms.currency").and_then(Value::as_str))
@@ -326,15 +392,17 @@ impl Invoice {
             .to_owned();
 
         let seller = Party {
-            name: problems.text(company, "name").unwrap_or_default(),
+            name: problems
+                .text_at(company, "name", "company.name")
+                .unwrap_or_default(),
             id: None,
             contact: None,
-            address: address(company, "address", &mut problems),
+            address: address(company, "address", "company.", &mut problems),
             email: optional(company, "contact.email"),
             vat_id: optional(company, "vat_id"),
             tax_number: optional(company, "tax_id"),
         };
-        if seller.vat_id.is_none() && seller.tax_number.is_none() {
+        if require_tax_registration && seller.vat_id.is_none() && seller.tax_number.is_none() {
             problems.add("company.vat_id or company.tax_id is needed (seller tax registration)");
         }
 
@@ -350,7 +418,7 @@ impl Invoice {
                 }),
             id: optional(invoice, "metadata.customer_number"),
             contact: recipient_company.and(recipient_name),
-            address: address(invoice, "recipient.address", &mut problems),
+            address: address(invoice, "recipient.address", "", &mut problems),
             email: optional(invoice, "recipient.email"),
             vat_id: optional(invoice, "recipient.vat_id"),
             tax_number: None,
@@ -400,7 +468,7 @@ impl Invoice {
                 problems.add(format!("{label}: quantity or unit_price.amount is missing"));
                 continue;
             };
-            let net_amount = quantity.mul(net_price).round2();
+            let net_amount = quantity.mul_money(net_price);
             if let Some(stated) = money(item.get("total")) {
                 if stated.round2() != net_amount {
                     problems.add(format!(
@@ -432,7 +500,7 @@ impl Invoice {
         let breakdown: Vec<TaxBreakdown> = groups
             .into_iter()
             .map(|(tax, basis)| TaxBreakdown {
-                amount: basis.percent(tax.rate).round2(),
+                amount: basis.percent_money(tax.rate),
                 tax,
                 basis,
             })
@@ -440,6 +508,92 @@ impl Invoice {
         let line_total: Dec = lines.iter().map(|line| line.net_amount).sum();
         let tax_total: Dec = breakdown.iter().map(|group| group.amount).sum();
         let grand_total = line_total + tax_total;
+
+        // Stated VAT groups also appear in the PDF. Comparing only grand totals
+        // could hide a swapped rate or taxable base while CII says something else.
+        if let Some(stated_groups) =
+            lookup(invoice, "totals.vat_breakdown").and_then(Value::as_array)
+        {
+            let stated_sum: Option<Dec> = stated_groups
+                .iter()
+                .map(|group| money(group.get("amount")))
+                .sum();
+            if stated_sum.is_none_or(|sum| sum.round2() != tax_total) {
+                problems.add("totals.vat_breakdown: stated VAT amounts do not sum to the normalized tax total");
+            }
+            for (index, group) in stated_groups.iter().enumerate() {
+                for field in ["base", "amount"] {
+                    if group
+                        .get(field)
+                        .and_then(|money| money.get("currency"))
+                        .and_then(Value::as_str)
+                        .is_some_and(|code| code != currency)
+                    {
+                        problems.add(format!("totals.vat_breakdown[{index}].{field}.currency differs from invoice currency"));
+                    }
+                }
+                let rate = group
+                    .get("rate")
+                    .and_then(|r| r.get("percentage").or(Some(r)))
+                    .and_then(Dec::from_json);
+                let matches: Vec<_> = breakdown
+                    .iter()
+                    .filter(|computed| {
+                        let stated_category = group
+                            .get("rate")
+                            .and_then(|r| r.get("category").or_else(|| r.get("code")))
+                            .and_then(Value::as_str)
+                            .map(|code| match code.to_lowercase().as_str() {
+                                "standard" | "reduced" | "s" => "S",
+                                "zero" | "z" => "Z",
+                                "exempt" | "smallbusiness" | "kleinunternehmer" | "e" => "E",
+                                "reversecharge" | "ae" => "AE",
+                                _ => "unknown",
+                            });
+                        Some(computed.tax.rate) == rate
+                            && stated_category
+                                .is_none_or(|category| computed.tax.category == category)
+                    })
+                    .collect();
+                let amount: Dec = matches.iter().map(|group| group.amount).sum();
+                let basis: Dec = matches.iter().map(|group| group.basis).sum();
+                if matches.is_empty()
+                    || money(group.get("amount")).is_none_or(|value| value.round2() != amount)
+                {
+                    problems.add(format!("totals.vat_breakdown[{index}].amount does not match the normalized tax groups"));
+                }
+                if let Some(stated) = money(group.get("base")) {
+                    if stated.round2() != basis {
+                        problems.add(format!("totals.vat_breakdown[{index}].base does not match the normalized taxable base"));
+                    }
+                }
+            }
+        }
+        for (index, item) in items.iter().enumerate() {
+            for field in ["unit_price", "total"] {
+                if item
+                    .get(field)
+                    .and_then(|money| money.get("currency"))
+                    .and_then(Value::as_str)
+                    .is_some_and(|code| code != currency)
+                {
+                    problems.add(format!(
+                        "items[{index}].{field}.currency differs from invoice currency"
+                    ));
+                }
+            }
+        }
+
+        for field in ["subtotal", "vat_total", "total", "discount_total"] {
+            if lookup(invoice, &format!("totals.{field}.currency"))
+                .and_then(Value::as_str)
+                .is_some_and(|code| code != currency)
+            {
+                problems.add(format!(
+                    "totals.{field}.currency differs from invoice currency"
+                ));
+            }
+        }
 
         // The PDF shows docgen's totals; the XML must say the same.
         for (path, computed) in [
@@ -474,6 +628,12 @@ impl Invoice {
         }
 
         let mut notes = Vec::new();
+        if let Some(value) = invoice.get("notes") {
+            match serde_json::from_value::<Vec<String>>(value.clone()) {
+                Ok(values) => notes.extend(values),
+                Err(_) => problems.add("notes: expected an array of strings"),
+            }
+        }
         if let Some(project) = optional(invoice, "metadata.project_reference") {
             notes.push(format!("Projekt: {project}"));
         }
@@ -482,7 +642,19 @@ impl Invoice {
         if let (Some(period), None) = (&period_text, &billing_period) {
             notes.push(format!("Leistungszeitraum: {period}"));
         }
-        let delivery_date = date(lookup(invoice, "metadata.delivery_date"));
+        let delivery_date = optional_date(
+            lookup(invoice, "metadata.delivery_date"),
+            "metadata.delivery_date",
+            &mut problems,
+        );
+        if lookup(invoice, "totals.discount_total").is_some_and(|value| !value.is_null())
+            && money(lookup(invoice, "totals.discount_total"))
+                .is_none_or(|amount| !amount.is_zero())
+        {
+            problems.add(
+                "totals.discount_total: invoice allowances are not supported by this CII model",
+            );
+        }
 
         if !problems.0.is_empty() {
             return Err(problems.0);

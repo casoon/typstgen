@@ -60,6 +60,35 @@ enum Commands {
         #[arg(long, value_name = "MANIFEST", conflicts_with = "pages")]
         manifest: Option<PathBuf>,
     },
+    /// List the capabilities declared by a template package catalog
+    #[cfg(feature = "zugferd")]
+    ListDocumentProfiles {
+        #[arg(long)]
+        catalog: PathBuf,
+        #[arg(long)]
+        include_drafts: bool,
+    },
+    /// Resolve an explicit profile selection JSON without changing its country rules
+    #[cfg(feature = "zugferd")]
+    ResolveDocumentProfile {
+        #[arg(long)]
+        catalog: PathBuf,
+        selection: PathBuf,
+    },
+    /// Check invoice data, declared facts and profile rules; does not transmit invoices
+    #[cfg(feature = "zugferd")]
+    ValidateDocument {
+        #[arg(long)]
+        catalog: PathBuf,
+        request: PathBuf,
+    },
+    /// Build invoice values from a user-owned tax and presentation configuration
+    #[cfg(feature = "zugferd")]
+    PrepareInvoice {
+        #[arg(long)]
+        config: PathBuf,
+        request: PathBuf,
+    },
     /// Check the PDFs recorded in a manifest: unchanged, same sources, identical rebuild
     #[cfg(feature = "archive")]
     Verify {
@@ -174,6 +203,23 @@ fn main() -> ExitCode {
                 }
             }
         }
+        #[cfg(feature = "zugferd")]
+        Commands::ListDocumentProfiles {
+            catalog,
+            include_drafts,
+        } => profile_command(&catalog, None, "list", include_drafts),
+        #[cfg(feature = "zugferd")]
+        Commands::ResolveDocumentProfile { catalog, selection } => {
+            profile_command(&catalog, Some(&selection), "resolve", false)
+        }
+        #[cfg(feature = "zugferd")]
+        Commands::ValidateDocument { catalog, request } => {
+            profile_command(&catalog, Some(&request), "validate", false)
+        }
+        #[cfg(feature = "zugferd")]
+        Commands::PrepareInvoice { config, request } => {
+            profile_command(&config, Some(&request), "prepare", false)
+        }
         #[cfg(feature = "archive")]
         Commands::Verify {
             manifest,
@@ -278,5 +324,44 @@ fn parse_input(raw: &str) -> Result<(String, String), String> {
     match raw.split_once('=') {
         Some((key, value)) if !key.is_empty() => Ok((key.to_owned(), value.to_owned())),
         _ => Err(format!("expected KEY=VALUE, got {raw:?}")),
+    }
+}
+
+#[cfg(feature = "zugferd")]
+fn profile_command(
+    catalog: &std::path::Path,
+    input: Option<&std::path::Path>,
+    action: &str,
+    drafts: bool,
+) -> ExitCode {
+    fn read(path: &std::path::Path) -> Result<serde_json::Value, Box<dyn std::error::Error>> {
+        Ok(serde_json::from_slice(&std::fs::read(path)?)?)
+    }
+    let result = (|| -> Result<serde_json::Value, Box<dyn std::error::Error>> {
+        let catalog = read(catalog)?;
+        let input = input.map(read).transpose()?.unwrap_or_default();
+        Ok(match action {
+            "list" => typstgen::profiles::list_document_profiles(&catalog, drafts),
+            "resolve" => typstgen::profiles::resolve_document_profile(&catalog, &input),
+            "prepare" => typstgen::invoice_config::prepare_invoice(&catalog, &input),
+            _ => typstgen::profiles::validate_document(&catalog, &input),
+        })
+    })();
+    match result {
+        Ok(report) => {
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&report).expect("JSON report")
+            );
+            if report["status"] == "blocked" {
+                ExitCode::FAILURE
+            } else {
+                ExitCode::SUCCESS
+            }
+        }
+        Err(error) => {
+            eprintln!("error: {error}");
+            ExitCode::FAILURE
+        }
     }
 }

@@ -63,14 +63,14 @@ impl Dec {
         self.0 > 0
     }
 
-    /// Product, rounded half away from zero to four digits.
-    pub fn mul(self, other: Dec) -> Dec {
-        Dec(div_round(self.0 * other.0, SCALE))
+    /// Monetary product rounded directly to cents, without intermediate rounding.
+    pub fn mul_money(self, other: Dec) -> Dec {
+        Dec(div_round(self.0 * other.0, SCALE * SCALE / 100) * 100)
     }
 
-    /// Percentage of `self`: `self * rate / 100`.
-    pub fn percent(self, rate: Dec) -> Dec {
-        Dec(div_round(self.0 * rate.0, SCALE * 100))
+    /// Monetary percentage rounded directly to cents.
+    pub fn percent_money(self, rate: Dec) -> Dec {
+        Dec(div_round(self.0 * rate.0, SCALE * SCALE) * 100)
     }
 
     /// Rounded half away from zero to two decimal places (cents).
@@ -131,6 +131,12 @@ fn div_round(value: i128, divisor: i128) -> i128 {
     }
 }
 
+impl serde::Serialize for Dec {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(&self.to_string())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::Dec;
@@ -149,8 +155,34 @@ mod tests {
     fn rounds_half_away_from_zero() {
         let basis = Dec::parse("10.05").unwrap();
         // 10.05 * 19 % = 1.9095 -> 1.91
-        assert_eq!(basis.percent(Dec::parse("19").unwrap()).amount(), "1.91");
+        assert_eq!(
+            basis.percent_money(Dec::parse("19").unwrap()).amount(),
+            "1.91"
+        );
         assert_eq!(Dec::parse("0.005").unwrap().amount(), "0.01");
         assert_eq!(Dec::parse("-0.005").unwrap().amount(), "-0.01");
+    }
+    #[test]
+    fn monetary_products_do_not_round_twice() {
+        let half = Dec::parse("0.5").unwrap();
+        assert_eq!(
+            half.mul_money(Dec::parse("0.0099").unwrap()).amount(),
+            "0.00"
+        );
+        assert_eq!(
+            half.mul_money(Dec::parse("0.0101").unwrap()).amount(),
+            "0.01"
+        );
+        assert_eq!(
+            half.mul_money(Dec::parse("-0.0099").unwrap()).amount(),
+            "0.00"
+        );
+        assert_eq!(
+            Dec::parse("0.33")
+                .unwrap()
+                .percent_money(Dec::parse("1.5").unwrap())
+                .amount(),
+            "0.00"
+        );
     }
 }
