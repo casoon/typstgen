@@ -166,3 +166,60 @@ fn mismatched_tax_bases_currencies_and_impossible_dates_fail() {
     input["data"]["items"][0]["unit_price"]["currency"] = json!("USD");
     assert_eq!(validate_document(&catalog(), &input)["status"], "blocked");
 }
+
+#[test]
+fn optional_dates_cannot_be_invalid_or_disagree_with_payment() {
+    for (field, value) in [("due_date", "2026-02-30"), ("delivery_date", "2026-02-30")] {
+        let mut input = request();
+        if field == "due_date" {
+            input["data"]["payment"][field] = json!(value);
+        } else {
+            input["data"]["metadata"][field] = json!(value);
+        }
+        let report = validate_document(&catalog(), &input);
+        assert_eq!(report["status"], "blocked", "{report}");
+        assert!(report["diagnostics"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|d| d["path"].as_str().unwrap().ends_with(field)));
+    }
+    let mut input = request();
+    input["data"]["metadata"]["due_date"] = json!("2026-11-30");
+    let report = validate_document(&catalog(), &input);
+    assert_eq!(report["status"], "blocked", "{report}");
+    assert!(report["diagnostics"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|d| d["path"] == "data.metadata.due_date"));
+}
+
+#[test]
+fn company_diagnostics_point_to_company_fields() {
+    let mut input = request();
+    input["company"].as_object_mut().unwrap().remove("name");
+    input["company"]["address"]
+        .as_object_mut()
+        .unwrap()
+        .remove("street");
+    let report = validate_document(&catalog(), &input);
+    let diagnostics = report["diagnostics"].as_array().unwrap();
+    assert!(diagnostics.iter().any(|d| d["path"] == "company.name"));
+    assert!(diagnostics
+        .iter()
+        .any(|d| d["path"] == "company.address.street"));
+}
+
+#[test]
+fn unsupported_discounts_are_not_silently_ignored() {
+    let mut input = request();
+    input["data"]["totals"]["discount_total"] = json!({"amount":"10", "currency":"EUR"});
+    let report = validate_document(&catalog(), &input);
+    assert_eq!(report["status"], "blocked", "{report}");
+    assert!(report["diagnostics"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|d| d["path"] == "data.totals.discount_total"));
+}

@@ -25,6 +25,14 @@ All notable changes to this project are documented in this file. The format is b
 - **ZUGFeRD:** Invalid calendar dates, conflicting currencies and stated tax-group values that
   disagree with the normalized invoice are rejected before CII generation.
 
+- **Profiles:** Malformed/conflicting optional dates and unsupported invoice discounts block the
+  rendering view; seller diagnostics point to the company input fields.
+
+### Security
+
+- **Dependencies:** Updated rustls, rustls-webpki and webpki-roots to patched versions, Tokio to
+  1.53.3 and the withdrawn yoke-derive version to 0.8.4; no RustSec vulnerabilities remain in the lockfile.
+
 ## [0.5.0] - 2026-10-13
 
 ### Breaking

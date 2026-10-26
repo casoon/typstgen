@@ -408,7 +408,11 @@ pub fn validate_document(catalog: &Value, request: &Value) -> Value {
             for problem in problems {
                 let path = problem.split([':', ' ']).next().unwrap_or("data");
                 errors.push(diagnostic(
-                    &format!("data.{path}"),
+                    &if path.starts_with("company.") {
+                        path.to_owned()
+                    } else {
+                        format!("data.{path}")
+                    },
                     "INVOICE-MODEL",
                     &problem,
                     &json!([]),

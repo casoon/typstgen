@@ -103,10 +103,14 @@ impl Problems {
     }
 
     fn text(&mut self, value: &Value, path: &str) -> Option<String> {
+        self.text_at(value, path, path)
+    }
+
+    fn text_at(&mut self, value: &Value, path: &str, diagnostic_path: &str) -> Option<String> {
         match lookup(value, path).and_then(Value::as_str).map(str::trim) {
             Some(text) if !text.is_empty() => Some(text.to_owned()),
             _ => {
-                self.add(format!("{path} is missing"));
+                self.add(format!("{diagnostic_path} is missing"));
                 None
             }
         }
@@ -150,6 +154,16 @@ fn date(value: Option<&Value>) -> Option<String> {
         .and_then(|((year, month), day)| chrono::NaiveDate::from_ymd_opt(year, month, day))
         .is_some();
     (valid && calendar_valid).then(|| format!("{year}{month}{day}"))
+}
+
+fn optional_date(value: Option<&Value>, path: &str, problems: &mut Problems) -> Option<String> {
+    let parsed = date(value);
+    if value.is_some_and(|value| !value.is_null()) && parsed.is_none() {
+        problems.add(format!(
+            "{path}: invalid calendar date (expected YYYY-MM-DD)"
+        ));
+    }
+    parsed
 }
 
 /// Money object `{"amount": "1400", "currency": "EUR"}` or a plain number.
@@ -266,7 +280,7 @@ fn tax(item: &Value, buyer_has_vat_id: bool, problems: &mut Problems, label: &st
             "{label}: exempt VAT needs vat_rate.exemption_reason (text) or exemption_reason_code"
         )),
         "AE" if !buyer_has_vat_id => {
-            problems.add("reverse charge needs recipient.vat_id (the buyer's VAT ID)")
+            problems.add("recipient.vat_id: required for reverse charge (the buyer's VAT ID)")
         }
         _ => {}
     }
@@ -286,26 +300,35 @@ fn tax(item: &Value, buyer_has_vat_id: bool, problems: &mut Problems, label: &st
     }
 }
 
-fn address(value: &Value, prefix: &str, problems: &mut Problems) -> Address {
+fn address(value: &Value, prefix: &str, diagnostic_root: &str, problems: &mut Problems) -> Address {
+    let label = format!("{diagnostic_root}{prefix}");
     let street = problems
-        .text(value, &format!("{prefix}.street"))
+        .text_at(
+            value,
+            &format!("{prefix}.street"),
+            &format!("{label}.street"),
+        )
         .unwrap_or_default();
     let number = optional(value, &format!("{prefix}.house_number")).unwrap_or_default();
     let country = optional(value, &format!("{prefix}.country_code"))
         .or_else(|| optional(value, &format!("{prefix}.country")));
     let country = country_code(country.as_deref()).unwrap_or_else(|| {
         problems.add(format!(
-            "{prefix}.country: unknown country, set {prefix}.country_code (ISO 3166-1, e.g. \"DE\")"
+            "{label}.country: unknown country, set {label}.country_code (ISO 3166-1, e.g. \"DE\")"
         ));
         String::new()
     });
     Address {
         line: format!("{street} {number}").trim().to_owned(),
         postcode: problems
-            .text(value, &format!("{prefix}.postal_code"))
+            .text_at(
+                value,
+                &format!("{prefix}.postal_code"),
+                &format!("{label}.postal_code"),
+            )
             .unwrap_or_default(),
         city: problems
-            .text(value, &format!("{prefix}.city"))
+            .text_at(value, &format!("{prefix}.city"), &format!("{label}.city"))
             .unwrap_or_default(),
         country,
     }
@@ -325,8 +348,24 @@ impl Invoice {
             problems.add("metadata.invoice_date is missing or not a date (YYYY-MM-DD)");
             String::new()
         });
-        let due_date = date(lookup(invoice, "payment.due_date"))
-            .or_else(|| date(lookup(invoice, "metadata.due_date")));
+        let payment_due = optional_date(
+            lookup(invoice, "payment.due_date"),
+            "payment.due_date",
+            &mut problems,
+        );
+        let metadata_due = optional_date(
+            lookup(invoice, "metadata.due_date"),
+            "metadata.due_date",
+            &mut problems,
+        );
+        if payment_due
+            .as_ref()
+            .zip(metadata_due.as_ref())
+            .is_some_and(|(payment, metadata)| payment != metadata)
+        {
+            problems.add("metadata.due_date: differs from payment.due_date");
+        }
+        let due_date = payment_due.or(metadata_due);
         let currency = lookup(invoice, "totals.total.currency")
             .and_then(Value::as_str)
             .or_else(|| lookup(company, "default_terms.currency").and_then(Value::as_str))
@@ -334,10 +373,12 @@ impl Invoice {
             .to_owned();
 
         let seller = Party {
-            name: problems.text(company, "name").unwrap_or_default(),
+            name: problems
+                .text_at(company, "name", "company.name")
+                .unwrap_or_default(),
             id: None,
             contact: None,
-            address: address(company, "address", &mut problems),
+            address: address(company, "address", "company.", &mut problems),
             email: optional(company, "contact.email"),
             vat_id: optional(company, "vat_id"),
             tax_number: optional(company, "tax_id"),
@@ -358,7 +399,7 @@ impl Invoice {
                 }),
             id: optional(invoice, "metadata.customer_number"),
             contact: recipient_company.and(recipient_name),
-            address: address(invoice, "recipient.address", &mut problems),
+            address: address(invoice, "recipient.address", "", &mut problems),
             email: optional(invoice, "recipient.email"),
             vat_id: optional(invoice, "recipient.vat_id"),
             tax_number: None,
@@ -576,7 +617,19 @@ impl Invoice {
         if let (Some(period), None) = (&period_text, &billing_period) {
             notes.push(format!("Leistungszeitraum: {period}"));
         }
-        let delivery_date = date(lookup(invoice, "metadata.delivery_date"));
+        let delivery_date = optional_date(
+            lookup(invoice, "metadata.delivery_date"),
+            "metadata.delivery_date",
+            &mut problems,
+        );
+        if lookup(invoice, "totals.discount_total").is_some_and(|value| !value.is_null())
+            && money(lookup(invoice, "totals.discount_total"))
+                .is_none_or(|amount| !amount.is_zero())
+        {
+            problems.add(
+                "totals.discount_total: invoice allowances are not supported by this CII model",
+            );
+        }
 
         if !problems.0.is_empty() {
             return Err(problems.0);
