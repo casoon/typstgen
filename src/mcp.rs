@@ -178,7 +178,7 @@ impl TypstgenServer {
 
     #[cfg(feature = "zugferd")]
     #[tool(
-        description = "Prepare invoice amounts, tax groups and rendering data using a user-owned configuration file. Selects explicit tax keys without inferring national tax law. Returns the same canonical values for PDF and CII; jurisdiction is not assessed."
+        description = "Prepare invoice amounts, tax groups and rendering data using a user-owned configuration file. Selects explicit tax keys without inferring national tax law. VAT invoices can supply CII; sales-tax invoices return additive component data for PDF. Jurisdiction is not assessed."
     )]
     async fn prepare_invoice(
         &self,

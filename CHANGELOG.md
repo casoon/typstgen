@@ -8,6 +8,9 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Added
 
+- **Invoices:** Configurations support US presentation choices and additive sales-tax components,
+  with separate taxable bases and rounded amounts. Sales-tax invoices are excluded from CII export.
+
 - **Invoices:** `prepare-invoice` and the matching Rust/MCP API build canonical invoice values
   from user-owned tax and presentation configuration without requiring a national catalog.
 

@@ -158,6 +158,9 @@ pub fn resolve_document_profile(catalog: &Value, selection: &Value) -> Value {
                 "layout",
                 "output_profile",
                 "allow_draft",
+                "paper",
+                "currency_display",
+                "tax_label",
             ]
             .contains(&field.as_str())
             {
@@ -171,6 +174,33 @@ pub fn resolve_document_profile(catalog: &Value, selection: &Value) -> Value {
         }
     }
     if !profile.is_null() {
+        for (field, allowed) in [
+            ("paper", &["a4", "us-letter"][..]),
+            ("currency_display", &["auto", "code", "symbol"][..]),
+        ] {
+            if selection
+                .get(field)
+                .is_some_and(|value| !value.as_str().is_some_and(|value| allowed.contains(&value)))
+            {
+                errors.push(diagnostic(
+                    &format!("selection.{field}"),
+                    "PROFILE-CAPABILITY",
+                    "unsupported presentation choice",
+                    &profile["sources"],
+                ));
+            }
+        }
+        if selection
+            .get("tax_label")
+            .is_some_and(|value| !value.as_str().is_some_and(|text| !text.trim().is_empty()))
+        {
+            errors.push(diagnostic(
+                "selection.tax_label",
+                "PROFILE-CAPABILITY",
+                "expected nonempty text",
+                &profile["sources"],
+            ));
+        }
         if profile["status"] == "abstract" || profile["status"] == "unsupported" {
             errors.push(diagnostic(
                 "selection.profile_id",
@@ -260,6 +290,18 @@ fn iso(v: &Value) -> Option<NaiveDate> {
 /// Evaluate package rules and the existing exact-decimal invoice model. No external validator
 /// run, PDF/A check or transmission is implied by a successful business-rule result.
 pub fn validate_document(catalog: &Value, request: &Value) -> Value {
+    validate_document_with_model(
+        catalog,
+        request,
+        Invoice::from_docgen(&request["data"], &request["company"]),
+    )
+}
+
+pub(crate) fn validate_document_with_model(
+    catalog: &Value,
+    request: &Value,
+    model: Result<Invoice, Vec<String>>,
+) -> Value {
     let resolved = resolve_document_profile(catalog, &request["selection"]);
     let mut errors = array(&resolved, "diagnostics");
     let profile = &resolved["profile"];
@@ -382,7 +424,6 @@ pub fn validate_document(catalog: &Value, request: &Value) -> Value {
             }
         }
     }
-    let model = Invoice::from_docgen(&request["data"], &request["company"]);
     let arithmetic = if model.is_ok() { "passed" } else { "failed" };
     let normalized = match model {
         Ok(invoice) => {

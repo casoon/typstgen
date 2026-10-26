@@ -126,3 +126,85 @@ fn malformed_configuration_and_input_are_rejected_without_panics() {
     config["taxes"]["regular"]["rate"] = json!("-1");
     assert_eq!(prepare_invoice(&config, &request())["status"], "blocked");
 }
+
+fn sales_config() -> Value {
+    json!({"version":1,"tax_model":"sales-tax",
+        "presentation":{"language":"en","format_locale":"en-US","currency":"USD","layout":"international","paper":"us-letter"},
+        "default_tax":"general","taxes":{
+            "general":{"components":[{"id":"state","label":"State tax","rate":"6.25"},{"id":"local","label":"Local tax","rate":"1"}]},
+            "untaxed":{"components":[]}}})
+}
+
+fn sales_request() -> Value {
+    let mut request = request();
+    request["data"]["items"] = json!([
+        {"description":"Taxed goods","quantity":"1","unit_code":"C62","unit_price":{"amount":"1234.56"}},
+        {"description":"Additional taxed goods","quantity":"1","unit_code":"C62","unit_price":{"amount":"100"}},
+        {"description":"Untaxed goods","quantity":"1","unit_code":"C62","unit_price":{"amount":"10"},"tax":"untaxed"}]);
+    request
+}
+
+#[test]
+fn sales_tax_groups_round_each_additive_component_on_its_own_taxable_base() {
+    let mut request = sales_request();
+    request["company"].as_object_mut().unwrap().remove("vat_id");
+    request["company"].as_object_mut().unwrap().remove("tax_id");
+    let report = prepare_invoice(&sales_config(), &request);
+    assert_eq!(report["status"], "ready_for_preview", "{report:#}");
+    assert_eq!(report["normalized"]["line_total"], "1344.56");
+    assert_eq!(report["normalized"]["tax_total"], "96.76");
+    assert_eq!(report["normalized"]["grand_total"], "1441.32");
+    assert_eq!(report["normalized"]["breakdown"][0]["id"], "local");
+    assert_eq!(report["normalized"]["breakdown"][0]["basis"], "1334.56");
+    assert_eq!(report["normalized"]["breakdown"][0]["amount"], "13.35");
+    assert_eq!(report["normalized"]["breakdown"][1]["amount"], "83.41");
+    assert_eq!(report["data"]["items"][0]["tax_rate"], "7.25");
+    assert!(report["data"]["items"][0].get("vat_rate").is_none());
+    assert_eq!(report["selection"]["paper"], "us-letter");
+    assert_eq!(report["checks"]["en16931"], "not_applicable");
+    let error = typstgen::zugferd::xml_from_docgen(
+        &report["data"].to_string(),
+        &report["company"].to_string(),
+    )
+    .unwrap_err();
+    assert!(error
+        .to_string()
+        .contains("sales-tax components cannot be represented"));
+}
+
+#[test]
+fn sales_tax_rejects_conflicting_totals_vat_input_and_inconsistent_component_ids() {
+    for field in ["total", "tax_total"] {
+        let mut request = sales_request();
+        request["data"]["totals"] = json!({field:{"amount":"1","currency":"USD"}});
+        assert_eq!(
+            prepare_invoice(&sales_config(), &request)["status"],
+            "blocked"
+        );
+    }
+    let mut request = sales_request();
+    request["data"]["totals"] =
+        json!({"total":{"amount":"1441.32"},"tax_total":{"amount":"96.76"}});
+    assert_eq!(
+        prepare_invoice(&sales_config(), &request)["status"],
+        "ready_for_preview"
+    );
+    request["data"]["items"][0]["vat_rate"] = json!({"code":"Standard","percentage":"7.25"});
+    assert_eq!(
+        prepare_invoice(&sales_config(), &request)["status"],
+        "blocked"
+    );
+    let mut config = sales_config();
+    config["taxes"]["untaxed"]["components"] =
+        json!([{"id":"state","label":"State tax","rate":"5"}]);
+    assert_eq!(
+        prepare_invoice(&config, &sales_request())["status"],
+        "blocked"
+    );
+    config = sales_config();
+    config["taxes"]["general"]["components"][0]["rate"] = json!("-1");
+    assert_eq!(
+        prepare_invoice(&config, &sales_request())["status"],
+        "blocked"
+    );
+}

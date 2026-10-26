@@ -8,6 +8,8 @@
 //! The checks cover the EN 16931 rules this data can violate (required fields,
 //! VAT categories, line and total arithmetic). Validate the result with an
 //! external validator such as Mustang before relying on it.
+//! Sales-tax invoices use a separate component model and are rejected by this
+//! VAT adapter; their configured PDF data must not be treated as CII input.
 
 mod cii;
 pub(crate) mod decimal;

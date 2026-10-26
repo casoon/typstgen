@@ -74,3 +74,11 @@ no currency conversion, gross-price calculation or document allowances are added
 [Configuration schema, editable default and complete example](https://github.com/casoon/typst-business-templates/blob/main/docs/guides/invoice-configuration.md)
 live in the template package repository. This command requires the coordinated unreleased
 build; it is not part of the published 0.5.0 crate.
+
+Configurations also accept `tax_model: "sales-tax"` with named additive components instead
+of VAT categories. Each component has an ID, label and percentage; its taxable basis and
+rounded amount are calculated separately. These invoices return PDF rendering data and
+`en16931: not_applicable`; the CII adapter rejects sales-tax output. VAT remains the default.
+US presentation supports `en-US`, `paper: "us-letter"`, USD dollar prefixes, US date formatting
+and optional state/routing/account fields. See the package's configuration guide and its
+`examples/invoice-languages/` gallery for all seven languages and the additional US variant.

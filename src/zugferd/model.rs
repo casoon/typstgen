@@ -339,6 +339,25 @@ impl Invoice {
     /// invoice JSON, `company` that of company.json. Every problem found is
     /// returned, one per line.
     pub fn from_docgen(invoice: &Value, company: &Value) -> Result<Invoice, Vec<String>> {
+        if invoice.get("tax_model").is_some_and(|model| model != "vat") {
+            return Err(vec!["tax_model: CII export only supports VAT invoices; sales-tax components cannot be represented by this adapter".to_owned()]);
+        }
+        Self::from_data(invoice, company, true)
+    }
+
+    /// Validate shared net amounts and parties before adding sales-tax components.
+    pub(crate) fn from_sales_tax_base(
+        invoice: &Value,
+        company: &Value,
+    ) -> Result<Invoice, Vec<String>> {
+        Self::from_data(invoice, company, false)
+    }
+
+    fn from_data(
+        invoice: &Value,
+        company: &Value,
+        require_tax_registration: bool,
+    ) -> Result<Invoice, Vec<String>> {
         let mut problems = Problems(Vec::new());
 
         let number = problems
@@ -383,7 +402,7 @@ impl Invoice {
             vat_id: optional(company, "vat_id"),
             tax_number: optional(company, "tax_id"),
         };
-        if seller.vat_id.is_none() && seller.tax_number.is_none() {
+        if require_tax_registration && seller.vat_id.is_none() && seller.tax_number.is_none() {
             problems.add("company.vat_id or company.tax_id is needed (seller tax registration)");
         }
 
