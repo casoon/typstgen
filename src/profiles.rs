@@ -101,8 +101,26 @@ fn expand(
 
 /// List declared capabilities and their release status. Draft entries are explicit opt-in.
 pub fn list_document_profiles(catalog: &Value, include_drafts: bool) -> Value {
-    json!({"catalog_version": catalog["version"], "profiles": array(catalog, "profiles").into_iter()
-        .filter(|p| include_drafts || p["status"] == "released").collect::<Vec<_>>()})
+    let mut profiles = Vec::new();
+    let mut errors = Vec::new();
+    for profile in array(catalog, "profiles") {
+        if !include_drafts && profile["status"] != "released" {
+            continue;
+        }
+        let id = profile["id"].as_str().unwrap_or("");
+        let version = profile["version"].as_str().unwrap_or("");
+        match expand(catalog, id, version, &mut BTreeSet::new()) {
+            Ok(profile) => profiles.push(profile),
+            Err(message) => errors.push(diagnostic(
+                "catalog.profiles",
+                "PROFILE-IDENTITY",
+                &message,
+                &json!([]),
+            )),
+        }
+    }
+    json!({"status":if errors.is_empty() {"listed"} else {"blocked"}, "catalog_version":catalog["version"],
+        "profiles":profiles,"diagnostics":errors})
 }
 
 /// Resolve only explicit profile identities. Language never changes the rule jurisdiction.

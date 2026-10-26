@@ -44,13 +44,10 @@ fn selection_keeps_rules_independent_of_language_and_rejects_unknown_outputs() {
     assert!(resolve_document_profile(&catalog(), &input)["diagnostics"]
         .to_string()
         .contains("PROFILE-IDENTITY"));
-    assert_eq!(
-        list_document_profiles(&catalog(), false)["profiles"]
-            .as_array()
-            .unwrap()
-            .len(),
-        1
-    );
+    let listed = list_document_profiles(&catalog(), false);
+    assert_eq!(listed["profiles"][0]["country"], "DE");
+    assert_eq!(listed["profiles"][0]["outputs"], json!(["pdf-preview"]));
+    assert_eq!(listed["profiles"].as_array().unwrap().len(), 1);
 }
 #[test]
 fn missing_facts_have_paths_rules_and_sources_without_invented_defaults() {
