@@ -25,6 +25,15 @@ All notable changes to this project are documented in this file. The format is b
 - Docs: docgen is discontinued. Its templates live on as the Typst package `business-templates`
   in [typst-business-templates](https://github.com/casoon/typst-business-templates), and help texts
   call the invoice data "business-templates invoice JSON".
+- Website: the start page shows a real compile run (a letter that compiles, a missing import that
+  fails with exit code 1) next to the PDF it wrote, and how typstgen works as a diagram.
+- Website: on the start page the introduction follows the title directly, beside the install tabs;
+  the badges moved below the compile run.
+- Docs: the
+  [installation guide](https://casoon.github.io/typstgen/docs/getting-started/installation/) covers
+  the MCP setup and lists every Cargo feature, and the
+  [templates guide](https://casoon.github.io/typstgen/docs/guides/templates/) shows the import
+  lookup order as a diagram.
 
 ### Fixed
 
