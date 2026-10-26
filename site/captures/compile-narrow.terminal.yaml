@@ -1,0 +1,23 @@
+# Narrow version of compile.terminal.yaml for phones: same captures, 46 columns.
+version: 1
+terminal:
+  title: typstgen
+  cols: 46
+  rows: 13
+  theme: catppuccin-mocha
+steps:
+  - run: grep template_paths typstgen.toml
+  - show: config-line.txt
+    lang: text
+  - run: typstgen compile letter.typ
+  - wait: 600
+  - show: compile-letter.txt
+    lang: text
+  - run: typstgen compile missing-import.typ
+  - wait: 600
+  - show: compile-missing.txt
+    lang: text
+  - run: echo $?
+  - show: exit-missing.txt
+    lang: text
+  - wait: 5000
