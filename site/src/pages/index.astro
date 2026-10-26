@@ -29,39 +29,41 @@ import Diagram from '../components/Diagram.astro';
     lead="typstgen compiles .typ files to PDF with the Typst engine built in: no typst binary, no subprocess, and templates found through a config file instead of hardcoded paths. From the shell, from Rust, in the browser or from your AI agent."
   >
     <div class="get">
-    <Install
-      commands={[
-        { label: 'cargo', command: 'cargo install typstgen' },
-        { label: 'library', command: 'cargo add typstgen --no-default-features' },
-        { label: 'MCP', command: 'claude mcp add typstgen -- typstgen mcp --root .' },
-      ]}
-    />
-    <Badges>
-      <Badge>MIT</Badge>
-      <Badge>crates.io {config.version}</Badge>
-      <Badge>Rust 1.92+</Badge>
-      <Badge>Typst 0.15</Badge>
-    </Badges>
+      <Install
+        commands={[
+          { label: 'cargo', command: 'cargo install typstgen' },
+          { label: 'library', command: 'cargo add typstgen --no-default-features' },
+          { label: 'MCP', command: 'claude mcp add typstgen -- typstgen mcp --root .' },
+        ]}
+      />
     </div>
-    <div slot="output" class="scene">
-      <picture class="terminal-demo">
-        <source media="(max-width: 640px)" srcset={compileNarrowSvg} width="410.4" height="278" />
-        <img
-          src={compileSvg}
-          width="628.8"
-          height="242"
-          alt="Terminal: grep template_paths typstgen.toml prints template_paths = [&quot;templates&quot;]. typstgen compile letter.typ prints letter.pdf. typstgen compile missing-import.typ fails with 'error: typst compilation failed: missing-import.typ:2:9: error: file not found (searched at /footer.typ)', and echo $? prints 1."
-        />
-      </picture>
-      <figure class="page">
-        <img
-          src={letterPage}
-          width="700"
-          height="640"
-          alt="The top of letter.pdf as compiled: the sender line of the letterhead, the recipient Ada Example, the date 14 September 2026, the subject 'Your quote request' and a price table with a total of € 1,800."
-        />
-        <figcaption>letter.pdf, page 1</figcaption>
-      </figure>
+    <div slot="output">
+      <div class="scene">
+        <picture class="terminal-demo">
+          <source media="(max-width: 640px)" srcset={compileNarrowSvg} width="410.4" height="278" />
+          <img
+            src={compileSvg}
+            width="628.8"
+            height="242"
+            alt="Terminal: grep template_paths typstgen.toml prints template_paths = [&quot;templates&quot;]. typstgen compile letter.typ prints letter.pdf. typstgen compile missing-import.typ fails with 'error: typst compilation failed: missing-import.typ:2:9: error: file not found (searched at /footer.typ)', and echo $? prints 1."
+          />
+        </picture>
+        <figure class="page">
+          <img
+            src={letterPage}
+            width="700"
+            height="640"
+            alt="The top of letter.pdf as compiled: the sender line of the letterhead, the recipient Ada Example, the date 14 September 2026, the subject 'Your quote request' and a price table with a total of € 1,800."
+          />
+          <figcaption>letter.pdf, page 1</figcaption>
+        </figure>
+      </div>
+      <Badges>
+        <Badge>MIT</Badge>
+        <Badge>crates.io {config.version}</Badge>
+        <Badge>Rust 1.92+</Badge>
+        <Badge>Typst 0.15</Badge>
+      </Badges>
     </div>
   </Hero>
 
@@ -163,15 +165,14 @@ import Diagram from '../components/Diagram.astro';
 </Base>
 
 <style>
-  /* Install tabs over the badges, beside the lead. */
+  /* The install tabs keep their full width beside the lead. */
   .get {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
     width: min(100%, 470px);
   }
-  /* Terminal and the PDF it wrote, side by side; stacked on narrow screens. */
+  /* Terminal and the PDF it wrote, side by side; stacked on narrow screens. The badges sit
+     below them, so the install box beside the lead is as tall as the lead and both line up. */
   .scene {
+    margin-bottom: 28px;
     display: grid;
     grid-template-columns: minmax(0, 629px) minmax(0, 1fr);
     gap: 28px;
