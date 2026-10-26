@@ -10,7 +10,7 @@ export default defineConfig({
     casoonPages({
       name: 'typstgen',
       description:
-        'Compiles existing .typ files to PDF with an embedded Typst engine: no typst binary, template paths from config. CLI, Rust library and Wasm.',
+        'Compiles existing .typ files to PDF with an embedded Typst engine: no typst binary, template paths from config. CLI, MCP server, Rust library and Wasm.',
       tagline: 'Typst to PDF with an embedded engine',
       website: 'https://typst.casoon.de',
       repo: 'casoon/typstgen',
@@ -25,6 +25,7 @@ export default defineConfig({
         guides: 'Guides',
         reference: 'Reference',
       },
+      mdxComponents: './src/mdx-components.ts',
     }),
   ],
 });
