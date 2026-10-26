@@ -22,6 +22,9 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Fixed
 
+- **Profiles:** Explicit invoice payment-account details also supply the PDF footer's bank name,
+  instead of retaining the company default bank name when an account is overridden.
+
 - **ZUGFeRD:** Line amounts and tax amounts round directly to cents without a second rounding
   through four fractional digits, preserving correct results at sub-cent boundaries.
 

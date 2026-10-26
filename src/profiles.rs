@@ -470,7 +470,10 @@ fn rendering_view(request: &Value, model: &Value, profile: &Value) -> (Value, Va
             "base":money(&group["basis"]),"amount":money(&group["amount"])})
     }).collect());
     if !model["payment"].is_null() {
-        let mut bank = request["company"]["bank_account"].clone();
+        let mut bank = request["data"]["payment"]
+            .get("bank_account")
+            .unwrap_or(&request["company"]["bank_account"])
+            .clone();
         if !bank.is_object() {
             bank = json!({});
         }

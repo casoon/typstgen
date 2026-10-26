@@ -239,3 +239,31 @@ fn valid_subcent_line_is_not_rounded_twice() {
     assert_eq!(report["status"], "ready_for_preview", "{report}");
     assert_eq!(report["normalized"]["lines"][0]["net_amount"], "0");
 }
+
+#[test]
+fn rendering_uses_the_same_selected_payment_account_as_cii() {
+    let mut input = request();
+    input["data"]["payment"]["bank_account"] = input["company"]["bank_account"].clone();
+    input["data"]["payment"]["bank_account"]["bank_name"] = json!("Synthetic payment bank");
+    input["data"]["payment"]["bank_account"]["iban"] = json!("GB82WEST12345698765432");
+    input["data"]["payment"]["bank_account"]["bic"] = json!("NWBKGB2L");
+    input["data"]["payment"]["bank_account"]["account_holder"] = json!("Synthetic payee");
+    let report = validate_document(&catalog(), &input);
+    assert_eq!(report["status"], "ready_for_preview", "{report}");
+    assert_eq!(
+        report["company"]["bank_account"]["bank_name"],
+        "Synthetic payment bank"
+    );
+    assert_eq!(
+        report["company"]["bank_account"]["account_holder"],
+        report["normalized"]["payment"]["account_name"]
+    );
+    assert_eq!(
+        report["normalized"]["payment"]["iban"],
+        "GB82WEST12345698765432"
+    );
+    assert_eq!(
+        report["data"]["payment"]["bank_account"],
+        report["company"]["bank_account"]
+    );
+}
