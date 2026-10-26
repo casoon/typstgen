@@ -74,6 +74,32 @@ fn mcp_server_checks_previews_and_compiles() {
             "zugferd": {"invoice": "invoice.json", "company": "company.json"}}),
         ));
     }
+    #[cfg(feature = "zugferd")]
+    {
+        fs::write(root.join("profiles.json"), json!({"version":"1","profiles":[
+            {"id":"de-reference","version":"1","status":"released","country":"DE","tax_case":"reference",
+            "languages":["en"],"format_locales":["en-GB"],"currencies":["EUR"],"layouts":["din"],"outputs":["pdf-preview"],
+            "required":["facts.confirmed"],"rules":[],"sources":[]}
+        ]}).to_string()).unwrap();
+        messages.push(call(
+            8,
+            "list_document_profiles",
+            json!({"catalog":"profiles.json"}),
+        ));
+        messages.push(call(9,"resolve_document_profile",json!({"catalog":"profiles.json","selection":{
+            "profile_id":"de-reference","profile_version":"1","language":"en","format_locale":"en-GB",
+            "currency":"EUR","layout":"din","output_profile":"pdf-preview"}})));
+        messages.push(call(
+            10,
+            "validate_document",
+            json!({"catalog":"profiles.json","request":{}}),
+        ));
+        messages.push(call(
+            11,
+            "list_document_profiles",
+            json!({"catalog":"../outside.json"}),
+        ));
+    }
     let expected = messages.len() - 1;
 
     let mut child = Command::new(env!("CARGO_BIN_EXE_typstgen"))
@@ -134,6 +160,18 @@ fn mcp_server_checks_previews_and_compiles() {
 
     #[cfg(feature = "zugferd")]
     {
+        assert_eq!(
+            serde_json::from_str::<Value>(&text(8)).unwrap()["profiles"][0]["country"],
+            "DE"
+        );
+        let selected: Value = serde_json::from_str(&text(9)).unwrap();
+        assert_eq!(selected["status"], "resolved");
+        assert_eq!(selected["profile"]["country"], "DE");
+        assert_eq!(
+            serde_json::from_str::<Value>(&text(10)).unwrap()["status"],
+            "blocked"
+        );
+        assert!(is_error(11));
         assert!(!is_error(7), "{}", text(7));
         let pdf = fs::read(root.join("invoice.pdf")).expect("ZUGFeRD pdf");
         assert!(String::from_utf8_lossy(&pdf).contains("<fx:DocumentFileName>factur-x.xml"));

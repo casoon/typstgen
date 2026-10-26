@@ -10,8 +10,8 @@
 //! external validator such as Mustang before relying on it.
 
 mod cii;
-mod decimal;
-mod model;
+pub(crate) mod decimal;
+pub(crate) mod model;
 pub(crate) mod pdf;
 
 pub use cii::GUIDELINE;

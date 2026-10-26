@@ -25,6 +25,8 @@ mod world;
 pub mod archive;
 #[cfg(feature = "mcp")]
 pub mod mcp;
+#[cfg(feature = "zugferd")]
+pub mod profiles;
 #[cfg(feature = "wasm")]
 pub mod wasm;
 #[cfg(feature = "zugferd")]

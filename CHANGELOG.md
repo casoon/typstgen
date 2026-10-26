@@ -8,6 +8,9 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Added
 
+- **Profiles:** Data-driven document profile listing, selection and invoice validation are shared
+  by the Rust library, CLI and MCP, with field diagnostics and separate external-validation states.
+
 - ZUGFeRD: VAT code `Kleinunternehmer` is accepted as an alias for `Exempt` (category E), as used
   by older invoice JSON files. It still needs `exemption_reason` or `exemption_reason_code`.
 
@@ -16,6 +19,11 @@ All notable changes to this project are documented in this file. The format is b
 - Docs: docgen is discontinued. Its templates live on as the Typst package `business-templates`
   in [typst-business-templates](https://github.com/casoon/typst-business-templates), and help texts
   call the invoice data "business-templates invoice JSON".
+
+### Fixed
+
+- **ZUGFeRD:** Invalid calendar dates, conflicting currencies and stated tax-group values that
+  disagree with the normalized invoice are rejected before CII generation.
 
 ## [0.5.0] - 2026-10-13
 

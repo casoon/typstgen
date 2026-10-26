@@ -3,12 +3,13 @@
 
 use std::collections::BTreeMap;
 
+use serde::Serialize;
 use serde_json::Value;
 
 use super::decimal::Dec;
 
 /// A postal address with an ISO 3166-1 country code.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Address {
     pub line: String,
     pub postcode: String,
@@ -16,7 +17,7 @@ pub struct Address {
     pub country: String,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Party {
     pub name: String,
     /// BT-46 for the buyer; unused for the seller.
@@ -33,7 +34,7 @@ pub struct Party {
 }
 
 /// VAT category (UNTDID 5305) with what EN 16931 needs for it.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize)]
 pub struct Tax {
     /// S, Z, E or AE.
     pub category: &'static str,
@@ -43,7 +44,7 @@ pub struct Tax {
     pub exemption_code: Option<String>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Line {
     pub id: String,
     pub name: String,
@@ -56,21 +57,21 @@ pub struct Line {
     pub tax: Tax,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct TaxBreakdown {
     pub tax: Tax,
     pub basis: Dec,
     pub amount: Dec,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Payment {
     pub iban: String,
     pub bic: Option<String>,
     pub account_name: Option<String>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Invoice {
     pub number: String,
     /// YYYYMMDD.
@@ -141,7 +142,14 @@ fn date(value: Option<&Value>) -> Option<String> {
         && [year, month, day]
             .iter()
             .all(|part| part.chars().all(|c| c.is_ascii_digit()));
-    valid.then(|| format!("{year}{month}{day}"))
+    let calendar_valid = year
+        .parse::<i32>()
+        .ok()
+        .zip(month.parse::<u32>().ok())
+        .zip(day.parse::<u32>().ok())
+        .and_then(|((year, month), day)| chrono::NaiveDate::from_ymd_opt(year, month, day))
+        .is_some();
+    (valid && calendar_valid).then(|| format!("{year}{month}{day}"))
 }
 
 /// Money object `{"amount": "1400", "currency": "EUR"}` or a plain number.
@@ -440,6 +448,92 @@ impl Invoice {
         let line_total: Dec = lines.iter().map(|line| line.net_amount).sum();
         let tax_total: Dec = breakdown.iter().map(|group| group.amount).sum();
         let grand_total = line_total + tax_total;
+
+        // Stated VAT groups also appear in the PDF. Comparing only grand totals
+        // could hide a swapped rate or taxable base while CII says something else.
+        if let Some(stated_groups) =
+            lookup(invoice, "totals.vat_breakdown").and_then(Value::as_array)
+        {
+            let stated_sum: Option<Dec> = stated_groups
+                .iter()
+                .map(|group| money(group.get("amount")))
+                .sum();
+            if stated_sum.is_none_or(|sum| sum.round2() != tax_total) {
+                problems.add("totals.vat_breakdown: stated VAT amounts do not sum to the normalized tax total");
+            }
+            for (index, group) in stated_groups.iter().enumerate() {
+                for field in ["base", "amount"] {
+                    if group
+                        .get(field)
+                        .and_then(|money| money.get("currency"))
+                        .and_then(Value::as_str)
+                        .is_some_and(|code| code != currency)
+                    {
+                        problems.add(format!("totals.vat_breakdown[{index}].{field}.currency differs from invoice currency"));
+                    }
+                }
+                let rate = group
+                    .get("rate")
+                    .and_then(|r| r.get("percentage").or(Some(r)))
+                    .and_then(Dec::from_json);
+                let matches: Vec<_> = breakdown
+                    .iter()
+                    .filter(|computed| {
+                        let stated_category = group
+                            .get("rate")
+                            .and_then(|r| r.get("category").or_else(|| r.get("code")))
+                            .and_then(Value::as_str)
+                            .map(|code| match code.to_lowercase().as_str() {
+                                "standard" | "reduced" | "s" => "S",
+                                "zero" | "z" => "Z",
+                                "exempt" | "smallbusiness" | "kleinunternehmer" | "e" => "E",
+                                "reversecharge" | "ae" => "AE",
+                                _ => "unknown",
+                            });
+                        Some(computed.tax.rate) == rate
+                            && stated_category
+                                .is_none_or(|category| computed.tax.category == category)
+                    })
+                    .collect();
+                let amount: Dec = matches.iter().map(|group| group.amount).sum();
+                let basis: Dec = matches.iter().map(|group| group.basis).sum();
+                if matches.is_empty()
+                    || money(group.get("amount")).is_none_or(|value| value.round2() != amount)
+                {
+                    problems.add(format!("totals.vat_breakdown[{index}].amount does not match the normalized tax groups"));
+                }
+                if let Some(stated) = money(group.get("base")) {
+                    if stated.round2() != basis {
+                        problems.add(format!("totals.vat_breakdown[{index}].base does not match the normalized taxable base"));
+                    }
+                }
+            }
+        }
+        for (index, item) in items.iter().enumerate() {
+            for field in ["unit_price", "total"] {
+                if item
+                    .get(field)
+                    .and_then(|money| money.get("currency"))
+                    .and_then(Value::as_str)
+                    .is_some_and(|code| code != currency)
+                {
+                    problems.add(format!(
+                        "items[{index}].{field}.currency differs from invoice currency"
+                    ));
+                }
+            }
+        }
+
+        for field in ["subtotal", "vat_total", "total", "discount_total"] {
+            if lookup(invoice, &format!("totals.{field}.currency"))
+                .and_then(Value::as_str)
+                .is_some_and(|code| code != currency)
+            {
+                problems.add(format!(
+                    "totals.{field}.currency differs from invoice currency"
+                ));
+            }
+        }
 
         // The PDF shows docgen's totals; the XML must say the same.
         for (path, computed) in [

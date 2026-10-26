@@ -131,6 +131,12 @@ fn div_round(value: i128, divisor: i128) -> i128 {
     }
 }
 
+impl serde::Serialize for Dec {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(&self.to_string())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::Dec;

@@ -25,7 +25,9 @@ error (each line names file:line:column), look at a page with `preview`, then `c
 archiving, compile with pdf_standards [\"a-2b\"] (or \"a-3b\" with attachments) and a \
 creation_timestamp so the output is reproducible. For a ZUGFeRD e-invoice pass zugferd {invoice, \
 company} (business-templates JSON files) with pdf_standards [\"a-3b\"]; problems in the data are listed per \
-field. `list_templates` shows the templates that \
+field. `list_document_profiles`, `resolve_document_profile` and `validate_document` use a package catalog \
+for explicit profile selection and business checks; external validation and transmission stay separate. \
+`list_templates` shows the templates that \
 #import can use. Typst packages (#import \"@preview/name:version\") are resolved automatically.";
 
 /// Values shared by `check`, `preview` and `compile`.
@@ -74,6 +76,22 @@ struct PreviewParams {
     scale: Option<f64>,
 }
 
+#[cfg(feature = "zugferd")]
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+struct ProfileParams {
+    /// Package catalog JSON path, relative to the workspace.
+    catalog: String,
+    /// Include draft and unsupported entries in the capability list.
+    #[serde(default)]
+    include_drafts: bool,
+    /// Explicit profile identity and separate rendering/output choices.
+    #[serde(default)]
+    selection: serde_json::Value,
+    /// Invoice validation envelope: selection, data, company and explicit facts.
+    #[serde(default)]
+    request: serde_json::Value,
+}
+
 #[derive(Clone)]
 pub struct TypstgenServer {
     root: Arc<PathBuf>,
@@ -90,6 +108,62 @@ impl TypstgenServer {
             config: Arc::new(config),
             tool_router: Self::tool_router(),
         }
+    }
+
+    #[cfg(feature = "zugferd")]
+    fn profile_catalog(&self, path: &str) -> Result<serde_json::Value, String> {
+        let input = self.input(path)?;
+        let bytes = std::fs::read(input).map_err(|error| error.to_string())?;
+        serde_json::from_slice(&bytes).map_err(|error| error.to_string())
+    }
+
+    #[cfg(feature = "zugferd")]
+    #[tool(
+        description = "List versioned document profiles and separate country, tax case, language, layout, output and transmission capabilities. Draft profiles are opt-in."
+    )]
+    async fn list_document_profiles(
+        &self,
+        Parameters(params): Parameters<ProfileParams>,
+    ) -> Result<CallToolResult, McpError> {
+        Ok(match self.profile_catalog(&params.catalog) {
+            Ok(catalog) => success(
+                crate::profiles::list_document_profiles(&catalog, params.include_drafts)
+                    .to_string(),
+            ),
+            Err(error) => failure(error),
+        })
+    }
+
+    #[cfg(feature = "zugferd")]
+    #[tool(
+        description = "Resolve an explicit versioned document profile. Returns unsupported choices and missing selection fields; language does not change country rules."
+    )]
+    async fn resolve_document_profile(
+        &self,
+        Parameters(params): Parameters<ProfileParams>,
+    ) -> Result<CallToolResult, McpError> {
+        Ok(match self.profile_catalog(&params.catalog) {
+            Ok(catalog) => success(
+                crate::profiles::resolve_document_profile(&catalog, &params.selection).to_string(),
+            ),
+            Err(error) => failure(error),
+        })
+    }
+
+    #[cfg(feature = "zugferd")]
+    #[tool(
+        description = "Validate invoice arithmetic and package profile rules against explicit facts. Returns field paths, rule IDs, sources and normalized invoice data. External EN16931/PDF-A validation and transmission remain separate not_run statuses. Does not invent facts."
+    )]
+    async fn validate_document(
+        &self,
+        Parameters(params): Parameters<ProfileParams>,
+    ) -> Result<CallToolResult, McpError> {
+        Ok(match self.profile_catalog(&params.catalog) {
+            Ok(catalog) => {
+                success(crate::profiles::validate_document(&catalog, &params.request).to_string())
+            }
+            Err(error) => failure(error),
+        })
     }
 
     #[tool(
