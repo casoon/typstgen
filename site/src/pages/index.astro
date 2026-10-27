@@ -1,16 +1,20 @@
 ---
+import { readFile } from 'node:fs/promises';
 import {
   Badge,
   Badges,
   Button,
   Facts,
+  Faq,
   Features,
   Hero,
   Install,
   Quickstart,
+  ReleaseHighlights,
 } from '@casoon/pages-theme/components';
 import Base from '@casoon/pages-theme/layouts/Base.astro';
 import config from 'virtual:casoon-pages/config';
+import { parseChangelog } from '@casoon/pages-theme/lib/changelog';
 import { url } from '@casoon/pages-theme/url';
 // Animated SVGs built with castwright from site/captures/compile*.terminal.yaml (real runs, see
 // capture.sh); the narrow one is for phones. letter-page.webp is page 1 of examples/letter.pdf.
@@ -20,6 +24,13 @@ import fontsPage from '../../captures/fonts-page.webp?url';
 import letterPage from '../../captures/letter-page.webp?url';
 import thesisPage from '../../captures/thesis-page.webp?url';
 import Diagram from '../components/Diagram.astro';
+
+// Skip "Unreleased": it has no version to show as "New in v…" yet.
+const latestRelease = config.changelog
+  ? parseChangelog(await readFile(config.changelog, 'utf8')).find(
+      (r) => r.version.toLowerCase() !== 'unreleased'
+    )
+  : undefined;
 ---
 
 <Base>
@@ -162,6 +173,33 @@ import Diagram from '../components/Diagram.astro';
       </a>
     </div>
   </Quickstart>
+
+  {latestRelease && <ReleaseHighlights release={latestRelease} />}
+
+  <Faq
+    items={[
+      {
+        q: 'Do I need the typst CLI installed to use typstgen?',
+        a: 'No. Typst runs embedded as a Rust library inside typstgen, so there is no external binary or subprocess to install or manage.',
+      },
+      {
+        q: 'What are the different ways to use typstgen?',
+        a: 'As a CLI (typstgen compile), a Rust library, a Wasm module for the browser, or an MCP server that lets AI agents check, preview and compile Typst documents.',
+      },
+      {
+        q: 'Can typstgen produce e-invoices like ZUGFeRD, XRechnung or Peppol?',
+        a: 'Yes. --zugferd embeds Factur-X/ZUGFeRD CII XML in the PDF, and e-invoice --format xrechnung-3.0 or peppol-bis-3.0 writes the same invoice as UBL 2.1 XML from the same invoice model.',
+      },
+      {
+        q: "How do I prove a PDF hasn't changed since it was built?",
+        a: 'Compile with --manifest archive.json to record the SHA-256 of the PDF and of every file Typst read; typstgen verify later confirms nothing changed and that the PDF rebuilds byte for byte.',
+      },
+      {
+        q: 'What happened to docgen?',
+        a: 'docgen is discontinued. Its templates live on as the Typst package business-templates in typst-business-templates, compiled with typstgen; its client and project management features were not carried over.',
+      },
+    ]}
+  />
 </Base>
 
 <style>

@@ -27,6 +27,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Changed
 
+- **Website:** the footer now follows the page language instead of always showing German text, and
+  the start page carries a release teaser and an FAQ (theme 0.11.1).
 - **ZUGFeRD:** `company.contact.name` is written as the seller contact (BT-41) in the CII XML.
 - **Docs:** docgen is discontinued. Its templates live on as the Typst package `business-templates`
   in [typst-business-templates](https://github.com/casoon/typst-business-templates), and help texts
