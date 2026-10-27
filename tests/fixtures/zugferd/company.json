@@ -8,7 +8,12 @@
     "city": "Berlin",
     "country": "Deutschland"
   },
-  "contact": { "email": "billing@northwind.example" },
+  "contact": {
+    "name": "Grace Hopper",
+    "phone": "+49 30 1234567",
+    "email": "billing@northwind.example"
+  },
+  "electronic_address": { "scheme_id": "9930", "value": "DE123456789" },
   "vat_id": "DE123456789",
   "bank_account": {
     "account_holder": "Northwind Studio",

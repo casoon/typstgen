@@ -8,6 +8,11 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Added
 
+- **E-invoices:** `typstgen e-invoice`, `zugferd::ubl_xml_from_docgen` and the MCP tool `e_invoice`
+  write XRechnung 3.0 and Peppol BIS Billing 3.0 as UBL 2.1 from the same invoice model as the CII
+  XML. Electronic addresses, buyer and order references, seller telephone and payment means codes
+  are read from the invoice JSON; schema and Schematron validation are reported as `not_run`.
+
 - **Invoices:** Configurations support US presentation choices and additive sales-tax components,
   with separate taxable bases and rounded amounts. Sales-tax invoices are excluded from CII export.
 
@@ -17,19 +22,20 @@ All notable changes to this project are documented in this file. The format is b
 - **Profiles:** Data-driven document profile listing, selection and invoice validation are shared
   by the Rust library, CLI and MCP, with field diagnostics and separate external-validation states.
 
-- ZUGFeRD: VAT code `Kleinunternehmer` is accepted as an alias for `Exempt` (category E), as used
+- **ZUGFeRD:** VAT code `Kleinunternehmer` is accepted as an alias for `Exempt` (category E), as used
   by older invoice JSON files. It still needs `exemption_reason` or `exemption_reason_code`.
 
 ### Changed
 
-- Docs: docgen is discontinued. Its templates live on as the Typst package `business-templates`
+- **ZUGFeRD:** `company.contact.name` is written as the seller contact (BT-41) in the CII XML.
+- **Docs:** docgen is discontinued. Its templates live on as the Typst package `business-templates`
   in [typst-business-templates](https://github.com/casoon/typst-business-templates), and help texts
   call the invoice data "business-templates invoice JSON".
-- Website: the start page shows a real compile run (a letter that compiles, a missing import that
+- **Website:** the start page shows a real compile run (a letter that compiles, a missing import that
   fails with exit code 1) next to the PDF it wrote, and how typstgen works as a diagram.
-- Website: on the start page the introduction follows the title directly, beside the install tabs;
+- **Website:** on the start page the introduction follows the title directly, beside the install tabs;
   the badges moved below the compile run.
-- Docs: the
+- **Docs:** the
   [installation guide](https://casoon.github.io/typstgen/docs/getting-started/installation/) covers
   the MCP setup and lists every Cargo feature, and the
   [templates guide](https://casoon.github.io/typstgen/docs/guides/templates/) shows the import

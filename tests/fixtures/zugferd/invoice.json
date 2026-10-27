@@ -4,6 +4,7 @@
     "invoice_date": { "date": "2026-10-01" },
     "delivery_date": { "date": "2026-09-30" },
     "customer_number": "K-042",
+    "buyer_reference": "991-01234-56",
     "performance_period": "09/2026"
   },
   "recipient": {
@@ -14,7 +15,8 @@
       "house_number": "22",
       "postal_code": "20095",
       "city": "Hamburg"
-    }
+    },
+    "electronic_address": { "scheme_id": "0204", "value": "991-01234-56" }
   },
   "items": [
     {

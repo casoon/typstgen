@@ -558,6 +558,7 @@ fn example_thesis_compiles_as_pdf_a() {
 #[cfg(feature = "zugferd")]
 mod zugferd {
     use super::*;
+    use typstgen::zugferd::UblFormat;
 
     fn fixture(name: &str) -> String {
         let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -629,6 +630,253 @@ mod zugferd {
             "{xml}"
         );
         assert!(xml.contains("§ 19 UStG"), "{xml}");
+    }
+
+    fn ubl(format: UblFormat, invoice: &str, company: &str) -> Result<String, String> {
+        typstgen::zugferd::ubl_xml_from_docgen(format, invoice, company)
+            .map_err(|error| error.to_string())
+    }
+
+    /// The text of every `<tag …>text</tag>` in `xml`, in document order.
+    fn values(xml: &str, tag: &str) -> Vec<String> {
+        xml.match_indices(&format!("<{tag}"))
+            .filter_map(|(start, _)| {
+                let rest = &xml[start + tag.len() + 1..];
+                let open_end = rest.find('>')?;
+                (rest.starts_with('>') || rest.starts_with(' ')).then_some(())?;
+                let text = &rest[open_end + 1..];
+                Some(text[..text.find("</")?].to_owned())
+            })
+            .collect()
+    }
+
+    #[test]
+    fn writes_xrechnung_ubl_in_schema_order() {
+        let xml = ubl(
+            UblFormat::XRechnung30,
+            &fixture("invoice.json"),
+            &fixture("company.json"),
+        )
+        .expect("valid XRechnung");
+        for expected in [
+            "<cbc:CustomizationID>urn:cen.eu:en16931:2017#compliant#urn:xeinkauf.de:kosit:xrechnung_3.0</cbc:CustomizationID>",
+            "<cbc:ProfileID>urn:fdc:peppol.eu:2017:poacc:billing:01:1.0</cbc:ProfileID>",
+            "<cbc:DueDate>2026-10-15</cbc:DueDate>",
+            "<cbc:BuyerReference>991-01234-56</cbc:BuyerReference>",
+            "<cbc:EndpointID schemeID=\"9930\">DE123456789</cbc:EndpointID>",
+            "<cbc:EndpointID schemeID=\"0204\">991-01234-56</cbc:EndpointID>",
+            "<cbc:Telephone>+49 30 1234567</cbc:Telephone>",
+            "<cbc:PaymentMeansCode>58</cbc:PaymentMeansCode>",
+            "<cbc:InvoicedQuantity unitCode=\"DAY\">2.5</cbc:InvoicedQuantity>",
+            "<cbc:PayableAmount currencyID=\"EUR\">2898.69</cbc:PayableAmount>",
+        ] {
+            assert!(xml.contains(expected), "missing {expected} in\n{xml}");
+        }
+        let order = [
+            "<cbc:IssueDate>",
+            "<cbc:DueDate>",
+            "<cbc:InvoiceTypeCode>",
+            "<cbc:DocumentCurrencyCode>",
+            "<cbc:BuyerReference>",
+            "<cac:InvoicePeriod>",
+            "<cac:AccountingSupplierParty>",
+            "<cac:AccountingCustomerParty>",
+            "<cac:Delivery>",
+            "<cac:PaymentMeans>",
+            "<cac:PaymentTerms>",
+            "<cac:TaxTotal>",
+            "<cac:LegalMonetaryTotal>",
+            "<cac:InvoiceLine>",
+        ]
+        .map(|tag| xml.find(tag).unwrap_or_else(|| panic!("missing {tag}")));
+        assert!(order.windows(2).all(|pair| pair[0] < pair[1]), "{xml}");
+        let line = &xml[xml.find("<cac:InvoiceLine>").unwrap()..];
+        assert!(line.find("<cbc:Description>") < line.find("<cbc:Name>"));
+    }
+
+    #[test]
+    fn ubl_and_cii_carry_the_same_invoice() {
+        let (invoice, company) = (fixture("invoice.json"), fixture("company.json"));
+        let cii = typstgen::zugferd::xml_from_docgen(&invoice, &company).expect("valid CII");
+        for format in UblFormat::ALL {
+            let ubl = ubl(format, &invoice, &company).expect("valid UBL");
+            let pairs = [
+                ("ram:InvoiceCurrencyCode", "cbc:DocumentCurrencyCode"),
+                ("ram:TaxBasisTotalAmount", "cbc:TaxExclusiveAmount"),
+                ("ram:TaxTotalAmount", "cbc:TaxAmount"),
+                ("ram:GrandTotalAmount", "cbc:TaxInclusiveAmount"),
+                ("ram:DuePayableAmount", "cbc:PayableAmount"),
+                ("ram:IBANID", "cbc:ID"),
+            ];
+            for (cii_tag, ubl_tag) in pairs {
+                let expected = &values(&cii, cii_tag)[0];
+                assert!(
+                    values(&ubl, ubl_tag).contains(expected),
+                    "{cii_tag} {expected} missing as {ubl_tag} in {}",
+                    format.id()
+                );
+            }
+            // Tax groups: same categories, rates, bases and amounts.
+            let header = &cii[cii.find("<ram:ApplicableHeaderTradeSettlement>").unwrap()..];
+            let total =
+                &ubl[ubl.find("<cac:TaxTotal>").unwrap()..ubl.find("</cac:TaxTotal>").unwrap()];
+            assert_eq!(
+                values(header, "ram:CategoryCode"),
+                values(total, "cbc:ID")
+                    .into_iter()
+                    .filter(|id| id != "VAT")
+                    .collect::<Vec<_>>()
+            );
+            assert_eq!(
+                values(header, "ram:RateApplicablePercent"),
+                values(total, "cbc:Percent")
+            );
+            assert_eq!(
+                values(header, "ram:BasisAmount"),
+                values(total, "cbc:TaxableAmount")
+            );
+            assert_eq!(
+                values(header, "ram:CalculatedAmount"),
+                values(total, "cbc:TaxAmount")[1..]
+            );
+            // Parties and dates.
+            for name in ["Northwind Studio", "Example Ltd", "DE123456789"] {
+                assert!(cii.contains(name) && ubl.contains(name), "{name}");
+            }
+            for (cii_date, ubl_date) in [
+                ("20261001", "2026-10-01"),
+                ("20261015", "2026-10-15"),
+                ("20260930", "2026-09-30"),
+            ] {
+                assert!(
+                    cii.contains(cii_date) && ubl.contains(ubl_date),
+                    "{ubl_date}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn ubl_formats_report_missing_fields_with_paths() {
+        let invoice = fixture("invoice.json")
+            .replace("\"buyer_reference\": \"991-01234-56\",", "")
+            .replace(
+                "\"electronic_address\": { \"scheme_id\": \"0204\", \"value\": \"991-01234-56\" }",
+                "\"electronic_address\": { \"scheme_id\": \"Leitweg\", \"value\": \"991-01234-56\" }",
+            );
+        let company = fixture("company.json")
+            .replace("\"phone\": \"+49 30 1234567\",", "")
+            .replace(
+                "\"electronic_address\": { \"scheme_id\": \"9930\", \"value\": \"DE123456789\" },",
+                "",
+            );
+        let message = ubl(UblFormat::XRechnung30, &invoice, &company).expect_err("invalid");
+        // The EN 16931 model rejects the malformed scheme before adapter checks run.
+        assert!(
+            message.contains("recipient.electronic_address.scheme_id: expected an EAS code"),
+            "{message}"
+        );
+
+        let invoice = invoice.replace("\"Leitweg\"", "\"0204\"");
+        let message = ubl(UblFormat::XRechnung30, &invoice, &company).expect_err("invalid");
+        for path in [
+            "company.electronic_address",
+            "metadata.buyer_reference",
+            "company.contact.phone",
+        ] {
+            assert!(
+                message.lines().any(|line| line.starts_with(path)),
+                "{path}: {message}"
+            );
+        }
+        assert!(
+            !message.contains("recipient.electronic_address"),
+            "{message}"
+        );
+
+        // Peppol accepts an order reference instead of a buyer reference and
+        // needs no seller telephone, but every endpoint.
+        let message = ubl(UblFormat::PeppolBis30, &invoice, &company).expect_err("invalid");
+        assert!(
+            message.contains("metadata.buyer_reference or metadata.order_reference"),
+            "{message}"
+        );
+        assert!(!message.contains("company.contact.phone"), "{message}");
+        let invoice = invoice.replace(
+            "\"customer_number\"",
+            "\"order_reference\": \"PO-7\", \"customer_number\"",
+        );
+        let company = fixture("company.json").replace("\"phone\": \"+49 30 1234567\",", "");
+        let xml = ubl(UblFormat::PeppolBis30, &invoice, &company).expect("valid Peppol");
+        assert!(
+            xml.contains("<cac:OrderReference>\n    <cbc:ID>PO-7</cbc:ID>"),
+            "{xml}"
+        );
+        assert!(xml.contains("billing:3.0</cbc:CustomizationID>"), "{xml}");
+
+        let error = "xrechnung-2.3"
+            .parse::<UblFormat>()
+            .expect_err("unknown format")
+            .to_string();
+        assert!(error.contains("xrechnung-3.0, peppol-bis-3.0"), "{error}");
+    }
+
+    #[test]
+    fn ubl_formats_handle_zero_rated_and_mixed_tax() {
+        let reverse = "{ \"code\": \"ReverseCharge\", \"percentage\": \"0\" }";
+        let exempt = "{ \"code\": \"Exempt\", \"percentage\": \"0\", \"exemption_reason\": \"§ 4 Nr. 21 UStG\" }";
+        let invoice = fixture("invoice.json")
+            .replace("{ \"code\": \"Reduced\", \"percentage\": \"7\" }", exempt)
+            .replace("\"amount\": \"458.79\"", "\"amount\": \"456.00\"")
+            .replace("\"amount\": \"2898.69\"", "\"amount\": \"2895.90\"");
+        let reverse_charge = fixture("invoice.json")
+            .replace(
+                "{ \"code\": \"Standard\", \"percentage\": \"19\" }",
+                reverse,
+            )
+            .replace("{ \"code\": \"Reduced\", \"percentage\": \"7\" }", reverse)
+            .replace(
+                "\"city\": \"Hamburg\"",
+                "\"city\": \"Wien\", \"country_code\": \"AT\"",
+            )
+            .replace(
+                "\"company\": \"Example Ltd\",",
+                "\"company\": \"Example Ltd\", \"vat_id\": \"ATU12345678\",",
+            )
+            .replace("\"amount\": \"458.79\"", "\"amount\": \"0\"")
+            .replace("\"amount\": \"2898.69\"", "\"amount\": \"2439.90\"");
+        for format in UblFormat::ALL {
+            let xml = ubl(format, &invoice, &fixture("company.json")).expect("mixed S and E");
+            let total =
+                &xml[xml.find("<cac:TaxTotal>").unwrap()..xml.find("</cac:TaxTotal>").unwrap()];
+            assert_eq!(values(total, "cbc:Percent"), ["0", "19"], "{xml}");
+            assert!(
+                total.contains("<cbc:TaxExemptionReason>§ 4 Nr. 21 UStG</cbc:TaxExemptionReason>")
+            );
+            assert!(
+                xml.contains("<cbc:TaxAmount currencyID=\"EUR\">0.00</cbc:TaxAmount>"),
+                "{xml}"
+            );
+
+            let xml =
+                ubl(format, &reverse_charge, &fixture("company.json")).expect("reverse charge");
+            assert!(
+                xml.contains(
+                    "<cbc:TaxExemptionReasonCode>VATEX-EU-AE</cbc:TaxExemptionReasonCode>"
+                ),
+                "{xml}"
+            );
+            assert!(
+                xml.contains("<cbc:CompanyID>ATU12345678</cbc:CompanyID>"),
+                "{xml}"
+            );
+            // Exemption reasons belong to the document-level tax breakdown only.
+            let lines = &xml[xml.find("<cac:InvoiceLine>").unwrap()..];
+            assert!(!lines.contains("TaxExemptionReason"), "{xml}");
+            assert!(
+                xml.contains("<cbc:PayableAmount currencyID=\"EUR\">2439.90</cbc:PayableAmount>")
+            );
+        }
     }
 
     #[test]

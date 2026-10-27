@@ -1,6 +1,6 @@
 ---
-title: E-invoices (ZUGFeRD)
-description: Turn an invoice into a ZUGFeRD / Factur-X e-invoice — a PDF/A-3 with the EN 16931 invoice data embedded as XML — from the same JSON that renders the invoice.
+title: E-invoices (ZUGFeRD, XRechnung)
+description: Turn an invoice into a ZUGFeRD / Factur-X e-invoice — a PDF/A-3 with the EN 16931 invoice data embedded as XML — or into XRechnung / Peppol BIS Billing XML, from the same JSON that renders the invoice.
 order: 6
 ---
 
@@ -91,8 +91,65 @@ The MCP tool `compile` takes the same input:
   "zugferd": { "invoice": "rechnung.json", "company": "company.json" } }
 ```
 
+## XRechnung and Peppol BIS Billing
+
+Not in the published 0.5.0 crate; available in the source build. `typstgen e-invoice` writes the
+same invoice as a pure-XML e-invoice in UBL 2.1. The XML comes from the same checked invoice model
+as the CII XML above, never from a rendered PDF, so amounts, tax groups, parties and dates agree.
+
+```sh
+typstgen e-invoice rechnung.json --company company.json --format xrechnung-3.0
+typstgen e-invoice rechnung.json --company company.json --format peppol-bis-3.0 -o rechnung.peppol.xml
+```
+
+| `--format` | Syntax | Specification identifier (BT-24) |
+| --- | --- | --- |
+| `xrechnung-3.0` | UBL 2.1 | `urn:cen.eu:en16931:2017#compliant#urn:xeinkauf.de:kosit:xrechnung_3.0` |
+| `peppol-bis-3.0` | UBL 2.1 | `urn:cen.eu:en16931:2017#compliant#urn:fdc:peppol.eu:2017:poacc:billing:3.0` |
+
+Both use the business process `urn:fdc:peppol.eu:2017:poacc:billing:01:1.0` (BT-23). Any other
+format name is an error; there is no fallback to a PDF.
+
+Besides the fields in the table above, the formats read:
+
+| EN 16931 | business-templates JSON | XRechnung 3.0 | Peppol BIS 3.0 |
+| --- | --- | --- | --- |
+| Seller electronic address (BT-34) | `company.json`: `electronic_address` `{scheme_id, value}` | required | required |
+| Buyer electronic address (BT-49) | `recipient.electronic_address` `{scheme_id, value}` | required | required |
+| Buyer reference (BT-10) | `metadata.buyer_reference`, e.g. the Leitweg-ID | required | this or BT-13 |
+| Order reference (BT-13) | `metadata.order_reference` | optional | this or BT-10 |
+| Seller contact (BG-6) | `company.json`: `contact.name`, `contact.phone`, `contact.email` | all required | optional |
+| Payment means (BT-81) | `payment.method_code` (UNTDID 4461); default `58` with a bank account | required | optional |
+
+`scheme_id` is a code from the EAS list, for example `0204` (Leitweg-ID), `9930` (German VAT ID),
+`0088` (GLN) or `EM` (e-mail). A credit transfer (`30`, `58`) needs an IBAN. Missing fields are
+reported with their JSON path:
+
+```text
+error: ZUGFeRD invoice:
+company.electronic_address: required ({"scheme_id": "0204", "value": "…"})
+metadata.buyer_reference: required (the Leitweg-ID for public buyers)
+company.contact.phone: required by XRechnung (seller contact)
+```
+
+After writing the file, typstgen prints which checks ran:
+
+```text
+checks: arithmetic passed, required_fields passed, xml_schema not_run, en16931 not_run, xrechnung not_run, transmission not_run
+```
+
+The UBL schema and the Schematron rules (EN 16931, XRechnung, Peppol) are not run by typstgen and
+are never reported as passed. Check the XML with the
+[KoSIT validator](https://github.com/itplr-kosit/validator) and its XRechnung configuration, or
+with the [Peppol validation artefacts](https://docs.peppol.eu/poacc/billing/3.0/), before sending
+it. Writing the file is not a transmission: sending it over the Peppol network needs an access
+point, and public-sector portals have their own upload.
+
+The MCP tool `e_invoice` takes `invoice`, `company`, `format` and an optional `output` and returns
+the same check states as JSON.
+
 ## Not covered
 
-- XRechnung (the pure-XML format for German public-sector buyers with a Leitweg-ID).
+- XRechnung and Peppol BIS Billing in the CII syntax, and other national formats.
 - Credit notes (type code 381), allowances and charges, prepaid amounts.
 - Other currencies than the one in the JSON are not converted.
