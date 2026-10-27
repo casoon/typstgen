@@ -6,6 +6,11 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Changed
+
+- **Site:** the four ways in (CLI, Rust library, Wasm, MCP server) get their own card grid under
+  the hero, linking straight to each one's reference.
+
 ### Added
 
 - **E-invoices:** `typstgen e-invoice`, `zugferd::ubl_xml_from_docgen` and the MCP tool `e_invoice`

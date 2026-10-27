@@ -1,6 +1,7 @@
 ---
 import { readFile } from 'node:fs/promises';
 import {
+  AnchorGrid,
   Badge,
   Badges,
   Button,
@@ -77,6 +78,39 @@ const latestRelease = config.changelog
       </Badges>
     </div>
   </Hero>
+
+  <AnchorGrid
+    items={[
+      {
+        label: 'CLI',
+        title: 'Compile from the shell',
+        body: 'One command turns a .typ file into a PDF, in CI or on your own machine.',
+        href: url('docs/reference/cli/'),
+        tone: 'accent',
+      },
+      {
+        label: 'Rust',
+        title: 'Add it as a library',
+        body: 'Get the PDF as bytes from one function call — no subprocess, no temp files.',
+        href: url('docs/reference/library/'),
+        tone: 'accent',
+      },
+      {
+        label: 'Wasm',
+        title: 'Compile in the browser',
+        body: 'A wasm-bindgen export for JavaScript hosts, fonts and all.',
+        href: url('docs/reference/library/#wasm'),
+        tone: 'brand',
+      },
+      {
+        label: 'MCP',
+        title: 'Let an AI agent compile it',
+        body: 'Four tools over MCP: check, preview, compile, list_templates.',
+        href: url('docs/guides/ai-agents/'),
+        tone: 'brand',
+      },
+    ]}
+  />
 
   <Features
     heading="Who it is for"
