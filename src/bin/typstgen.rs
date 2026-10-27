@@ -89,6 +89,22 @@ enum Commands {
         config: PathBuf,
         request: PathBuf,
     },
+    /// Write a pure-XML e-invoice (XRechnung 3.0 or Peppol BIS Billing 3.0, UBL 2.1) from a
+    /// business-templates invoice JSON; does not send it
+    #[cfg(feature = "zugferd")]
+    EInvoice {
+        /// The business-templates invoice JSON
+        invoice: PathBuf,
+        /// company.json with the seller's data
+        #[arg(long, value_name = "COMPANY_JSON")]
+        company: PathBuf,
+        /// Target format: xrechnung-3.0 or peppol-bis-3.0
+        #[arg(long, value_name = "FORMAT")]
+        format: typstgen::zugferd::UblFormat,
+        /// Output XML path (defaults to the invoice path with .xml extension)
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+    },
     /// Check the PDFs recorded in a manifest: unchanged, same sources, identical rebuild
     #[cfg(feature = "archive")]
     Verify {
@@ -220,6 +236,13 @@ fn main() -> ExitCode {
         Commands::PrepareInvoice { config, request } => {
             profile_command(&config, Some(&request), "prepare", false)
         }
+        #[cfg(feature = "zugferd")]
+        Commands::EInvoice {
+            invoice,
+            company,
+            format,
+            output,
+        } => e_invoice(&invoice, &company, format, output),
         #[cfg(feature = "archive")]
         Commands::Verify {
             manifest,
@@ -318,6 +341,44 @@ fn zugferd_xml(invoice: &std::path::Path, company: &std::path::Path) -> Result<S
     };
     typstgen::zugferd::xml_from_docgen(&read(invoice)?, &read(company)?)
         .map_err(|err| err.to_string())
+}
+
+#[cfg(feature = "zugferd")]
+fn e_invoice(
+    invoice: &std::path::Path,
+    company: &std::path::Path,
+    format: typstgen::zugferd::UblFormat,
+    output: Option<PathBuf>,
+) -> ExitCode {
+    let read = |path: &std::path::Path| {
+        std::fs::read_to_string(path).map_err(|err| format!("{}: {err}", path.display()))
+    };
+    let output = output.unwrap_or_else(|| invoice.with_extension("xml"));
+    let result = read(invoice)
+        .and_then(|invoice| Ok((invoice, read(company)?)))
+        .and_then(|(invoice, company)| {
+            typstgen::zugferd::ubl_xml_from_docgen(format, &invoice, &company)
+                .map_err(|err| err.to_string())
+        })
+        .and_then(|xml| {
+            std::fs::write(&output, xml).map_err(|err| format!("{}: {err}", output.display()))
+        });
+    match result {
+        Ok(()) => {
+            let checks: Vec<_> = format
+                .checks()
+                .iter()
+                .map(|(check, state)| format!("{check} {state}"))
+                .collect();
+            eprintln!("wrote {} ({}, UBL 2.1)", output.display(), format.id());
+            eprintln!("checks: {}", checks.join(", "));
+            ExitCode::SUCCESS
+        }
+        Err(err) => {
+            eprintln!("error: {err}");
+            ExitCode::FAILURE
+        }
+    }
 }
 
 fn parse_input(raw: &str) -> Result<(String, String), String> {

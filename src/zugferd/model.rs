@@ -25,12 +25,24 @@ pub struct Party {
     /// BT-56: contact person.
     pub contact: Option<String>,
     pub address: Address,
-    /// BT-34 / BT-49: electronic address (e-mail).
+    /// BT-34 / BT-49 in CII (scheme EM); a contact e-mail in UBL.
     pub email: Option<String>,
+    /// BT-42 / BT-57: contact telephone.
+    pub phone: Option<String>,
+    /// BT-34 / BT-49 in UBL: electronic address with its EAS scheme.
+    pub endpoint: Option<Endpoint>,
     /// BT-31 / BT-48: VAT identifier.
     pub vat_id: Option<String>,
     /// BT-32: tax registration number (Steuernummer).
     pub tax_number: Option<String>,
+}
+
+/// An electronic address with its scheme from the EAS code list, e.g.
+/// `0204` (Leitweg-ID), `9930` (German VAT ID) or `EM` (e-mail).
+#[derive(Debug, Clone, Serialize)]
+pub struct Endpoint {
+    pub scheme: String,
+    pub value: String,
 }
 
 /// VAT category (UNTDID 5305) with what EN 16931 needs for it.
@@ -92,6 +104,12 @@ pub struct Invoice {
     pub grand_total: Dec,
     pub payment: Option<Payment>,
     pub payment_terms: Option<String>,
+    /// BT-81: payment means code (UNTDID 4461).
+    pub payment_means_code: Option<String>,
+    /// BT-10: buyer reference, e.g. the Leitweg-ID.
+    pub buyer_reference: Option<String>,
+    /// BT-13: purchase order reference.
+    pub order_reference: Option<String>,
 }
 
 /// Collects every problem instead of stopping at the first.
@@ -127,6 +145,33 @@ fn optional(value: &Value, path: &str) -> Option<String> {
         .map(str::trim)
         .filter(|text| !text.is_empty())
         .map(str::to_owned)
+}
+
+/// `{"scheme_id": "0204", "value": "991-12345-67"}` at `path`, if present.
+fn endpoint(
+    value: &Value,
+    path: &str,
+    diagnostic_path: &str,
+    problems: &mut Problems,
+) -> Option<Endpoint> {
+    lookup(value, path).filter(|value| !value.is_null())?;
+    let scheme = optional(value, &format!("{path}.scheme_id"));
+    let address = optional(value, &format!("{path}.value"));
+    // EAS codes are four digits, plus EM for e-mail.
+    if scheme.as_deref().is_none_or(|scheme| {
+        scheme != "EM" && (scheme.len() != 4 || !scheme.chars().all(|c| c.is_ascii_digit()))
+    }) {
+        problems.add(format!(
+            "{diagnostic_path}.scheme_id: expected an EAS code such as \"0204\" or \"EM\""
+        ));
+    }
+    if address.is_none() {
+        problems.add(format!("{diagnostic_path}.value is missing"));
+    }
+    Some(Endpoint {
+        scheme: scheme?,
+        value: address?,
+    })
 }
 
 /// `{"date": "2025-01-22"}`, `"2025-01-22"` or `"22.01.2025"` as YYYYMMDD.
@@ -396,9 +441,16 @@ impl Invoice {
                 .text_at(company, "name", "company.name")
                 .unwrap_or_default(),
             id: None,
-            contact: None,
+            contact: optional(company, "contact.name"),
             address: address(company, "address", "company.", &mut problems),
             email: optional(company, "contact.email"),
+            phone: optional(company, "contact.phone"),
+            endpoint: endpoint(
+                company,
+                "electronic_address",
+                "company.electronic_address",
+                &mut problems,
+            ),
             vat_id: optional(company, "vat_id"),
             tax_number: optional(company, "tax_id"),
         };
@@ -420,6 +472,13 @@ impl Invoice {
             contact: recipient_company.and(recipient_name),
             address: address(invoice, "recipient.address", "", &mut problems),
             email: optional(invoice, "recipient.email"),
+            phone: optional(invoice, "recipient.phone"),
+            endpoint: endpoint(
+                invoice,
+                "recipient.electronic_address",
+                "recipient.electronic_address",
+                &mut problems,
+            ),
             vat_id: optional(invoice, "recipient.vat_id"),
             tax_number: None,
         };
@@ -622,6 +681,14 @@ impl Invoice {
             })
         });
         let payment_terms = optional(invoice, "payment.payment_terms");
+        let payment_means_code = optional(invoice, "payment.method_code");
+        if payment_means_code.as_deref().is_some_and(|code| {
+            code != "ZZZ" && (code.len() > 2 || !code.chars().all(|c| c.is_ascii_digit()))
+        }) {
+            problems.add(
+                "payment.method_code: expected a UNTDID 4461 code such as \"58\" (SEPA credit transfer)",
+            );
+        }
         // BR-CO-25.
         if grand_total.is_positive() && due_date.is_none() && payment_terms.is_none() {
             problems.add("payment.due_date or payment.payment_terms is needed for an amount due");
@@ -676,6 +743,9 @@ impl Invoice {
             grand_total,
             payment,
             payment_terms,
+            payment_means_code,
+            buyer_reference: optional(invoice, "metadata.buyer_reference"),
+            order_reference: optional(invoice, "metadata.order_reference"),
         })
     }
 }

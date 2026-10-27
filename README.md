@@ -86,6 +86,11 @@ additive sales-tax components, required fields, notes and presentation; missing 
 calculated with exact decimal arithmetic. VAT values can feed the CII adapter; sales-tax
 invoices return PDF/component data and are excluded from CII export.
 
+`e-invoice --format xrechnung-3.0|peppol-bis-3.0 --company company.json invoice.json` writes the
+same VAT invoice as UBL 2.1 XML (also as Rust function and MCP tool). Missing fields are reported
+by JSON path; schema and Schematron validation are reported as `not_run`, and writing the file is
+not a transmission. See [e-invoices](docs/guides/e-invoices.mdx).
+
 These commands are **not in the published 0.5.0 crate**. The template package pins the
 coordinated Git revision in
 [tool-versions.json](https://github.com/casoon/typst-business-templates/blob/main/tool-versions.json).

@@ -10,7 +10,7 @@ use super::model::{Address, Invoice, Party, Tax};
 /// The guideline identifier (BT-24) of the EN 16931 profile ("Comfort").
 pub const GUIDELINE: &str = "urn:cen.eu:en16931:2017";
 
-fn escape(text: &str) -> String {
+pub(super) fn escape(text: &str) -> String {
     let mut out = String::with_capacity(text.len());
     for c in text.chars() {
         match c {

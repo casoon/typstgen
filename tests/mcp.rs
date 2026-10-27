@@ -121,6 +121,16 @@ fn mcp_server_checks_previews_and_compiles() {
             "prepare_invoice",
             json!({"config":"../outside.json","request":{}}),
         ));
+        messages.push(call(
+            14,
+            "e_invoice",
+            json!({"invoice":"invoice.json","company":"company.json","format":"xrechnung-3.0"}),
+        ));
+        messages.push(call(
+            15,
+            "e_invoice",
+            json!({"invoice":"invoice.json","company":"company.json","format":"xrechnung-2.3"}),
+        ));
     }
     let expected = messages.len() - 1;
 
@@ -201,6 +211,21 @@ fn mcp_server_checks_previews_and_compiles() {
             text(12)
         );
         assert!(is_error(13));
+        assert!(!is_error(14), "{}", text(14));
+        let report: Value = serde_json::from_str(&text(14)).unwrap();
+        assert_eq!(report["output"], "invoice.xml");
+        assert_eq!(report["checks"]["required_fields"], "passed");
+        assert_eq!(report["checks"]["en16931"], "not_run");
+        assert_eq!(report["checks"]["xrechnung"], "not_run");
+        assert!(fs::read_to_string(root.join("invoice.xml"))
+            .unwrap()
+            .contains("kosit:xrechnung_3.0"));
+        assert!(is_error(15));
+        assert!(
+            text(15).contains("unsupported e-invoice format"),
+            "{}",
+            text(15)
+        );
         assert!(!is_error(7), "{}", text(7));
         let pdf = fs::read(root.join("invoice.pdf")).expect("ZUGFeRD pdf");
         assert!(String::from_utf8_lossy(&pdf).contains("<fx:DocumentFileName>factur-x.xml"));

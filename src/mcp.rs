@@ -25,7 +25,7 @@ error (each line names file:line:column), look at a page with `preview`, then `c
 archiving, compile with pdf_standards [\"a-2b\"] (or \"a-3b\" with attachments) and a \
 creation_timestamp so the output is reproducible. For a ZUGFeRD e-invoice pass zugferd {invoice, \
 company} (business-templates JSON files) with pdf_standards [\"a-3b\"]; problems in the data are listed per \
-field. `prepare_invoice` reads user-owned tax and presentation configuration. \
+field. `e_invoice` writes the same data as XRechnung or Peppol BIS Billing XML (UBL), without sending it. `prepare_invoice` reads user-owned tax and presentation configuration. \
 `list_document_profiles`, `resolve_document_profile` and `validate_document` use a package catalog \
 for explicit profile selection and business checks; external validation and transmission stay separate. \
 `list_templates` shows the templates that \
@@ -65,6 +65,17 @@ struct ZugferdParams {
     invoice: String,
     /// Seller data (company.json), relative to the workspace.
     company: String,
+}
+
+#[cfg(feature = "zugferd")]
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+struct EInvoiceParams {
+    #[serde(flatten)]
+    data: ZugferdParams,
+    /// Target format: "xrechnung-3.0" or "peppol-bis-3.0" (UBL 2.1).
+    format: String,
+    /// Output XML path relative to the workspace. Default: the invoice path with .xml.
+    output: Option<String>,
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
@@ -188,6 +199,54 @@ impl TypstgenServer {
             Ok(config) => success(
                 crate::invoice_config::prepare_invoice(&config, &params.request).to_string(),
             ),
+            Err(error) => failure(error),
+        })
+    }
+
+    #[cfg(feature = "zugferd")]
+    #[tool(
+        description = "Write a pure-XML e-invoice (XRechnung 3.0 or Peppol BIS Billing 3.0, UBL 2.1) from business-templates invoice and company JSON. Problems are listed per JSON field. Returns the check states: schema, EN16931 and profile Schematron validation and transmission stay not_run. Does not send the invoice."
+    )]
+    async fn e_invoice(
+        &self,
+        Parameters(params): Parameters<EInvoiceParams>,
+    ) -> Result<CallToolResult, McpError> {
+        let result = (|| {
+            let format = params
+                .format
+                .parse::<crate::zugferd::UblFormat>()
+                .map_err(|error| error.to_string())?;
+            let invoice = self.input(&params.data.invoice)?;
+            let company = self.input(&params.data.company)?;
+            let output = match params.output.as_deref() {
+                Some(path) => self.output(path)?,
+                None => invoice.with_extension("xml"),
+            };
+            let read = |path: &Path| {
+                std::fs::read_to_string(path)
+                    .map_err(|error| format!("{}: {error}", path.display()))
+            };
+            let xml =
+                crate::zugferd::ubl_xml_from_docgen(format, &read(&invoice)?, &read(&company)?)
+                    .map_err(|error| error.to_string())?;
+            std::fs::write(&output, xml)
+                .map_err(|error| format!("failed to write {}: {error}", output.display()))?;
+            let checks: serde_json::Map<_, _> = format
+                .checks()
+                .iter()
+                .map(|(check, state)| ((*check).to_owned(), serde_json::json!(state)))
+                .collect();
+            Ok::<_, String>(serde_json::json!({
+                "output": self.relative(&output),
+                "format": format.id(),
+                "syntax": "UBL 2.1",
+                "customization_id": format.customization_id(),
+                "profile_id": crate::zugferd::PROFILE_ID,
+                "checks": checks,
+            }))
+        })();
+        Ok(match result {
+            Ok(report) => success(report.to_string()),
             Err(error) => failure(error),
         })
     }
