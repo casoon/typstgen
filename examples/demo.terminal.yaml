@@ -1,0 +1,21 @@
+# Recorded with `castwright build --allow-exec --record` from `typstgen compile letter.typ`
+# and `file letter.pdf`, run in a folder holding examples/letter.typ, templates/ and typstgen.toml.
+version: 1
+
+terminal:
+  title: typstgen
+  cols: 90
+  rows: 7
+  theme: catppuccin-mocha
+
+steps:
+  - wait: 500
+  - run: typstgen compile letter.typ --config typstgen.toml
+  - output:
+      raw: |
+        letter.pdf
+  - run: file letter.pdf
+  - output:
+      raw: |
+        letter.pdf: PDF document, version 1.7, 1 pages
+  - wait: 2500

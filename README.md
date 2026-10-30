@@ -10,6 +10,10 @@ config-driven instead of hardcoded.
 your-document.typ  +  typstgen.toml (template_paths)  →  your-document.pdf
 ```
 
+<p align="center">
+  <img src=".github/readme/demo.svg" alt="A terminal demo: typstgen compile letter.typ --config typstgen.toml prints letter.pdf, and file letter.pdf reports a one-page PDF document, version 1.7." width="696">
+</p>
+
 Usable four ways from one crate:
 
 - **CLI** (`cli` feature, default): `typstgen compile input.typ`
