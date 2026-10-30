@@ -32,7 +32,7 @@ const { items, heading } = Astro.props;
         <li>
           <a class={item.tone ?? TONES[i % TONES.length]} href={item.href}>
             <span class="label">{item.label}</span>
-            <h3>{item.title}</h3>
+            <h2>{item.title}</h2>
             <p>{item.body}</p>
             <span class="go" aria-hidden="true">
               →
@@ -109,7 +109,7 @@ const { items, heading } = Astro.props;
   .brand .label {
     background: var(--brand);
   }
-  h3 {
+  h2 {
     margin: 0;
     color: var(--heading);
     font-size: 18px;

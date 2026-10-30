@@ -113,6 +113,12 @@ const { eyebrow, title, lead, points, links, reverse = false } = Astro.props;
     background: var(--code-bg);
     font-size: 0.9em;
   }
+  .lead :global(a),
+  .points :global(a) {
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    text-decoration-thickness: 1px;
+  }
   .points {
     margin: 22px 0 0;
     padding: 0;

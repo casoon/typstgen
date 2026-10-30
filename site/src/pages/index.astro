@@ -140,7 +140,7 @@ import Diagram from '../components/Diagram.astro';
   <Spotlight
     eyebrow="Invoices"
     title="One invoice JSON, every format"
-    lead="The invoice template of the Typst package `business-templates` renders the PDF from an invoice JSON. typstgen reads the same file for the machine-readable versions, so the PDF and the XML cannot disagree."
+    lead="The invoice template of the Typst package [business-templates](https://github.com/casoon/typst-business-templates) renders the PDF from an invoice JSON. typstgen reads the same file for the machine-readable versions, so the PDF and the XML cannot disagree."
     points={[
       '**ZUGFeRD / Factur-X:** `--zugferd invoice.json` embeds the EN 16931 data in a PDF/A-3b.',
       '**XRechnung 3.0 and Peppol BIS Billing 3.0:** `typstgen e-invoice` writes UBL 2.1 XML.',
@@ -150,7 +150,6 @@ import Diagram from '../components/Diagram.astro';
     links={[
       { label: 'E-invoices', href: url('docs/guides/e-invoices/') },
       { label: 'Invoice configuration', href: url('docs/guides/document-profiles/') },
-      { label: 'business-templates', href: 'https://github.com/casoon/typst-business-templates' },
     ]}
   >
     <picture class="terminal-demo">
