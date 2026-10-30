@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-30
+
 ### Added
 
 - **E-invoices:** `typstgen e-invoice`, `zugferd::ubl_xml_from_docgen` and the MCP tool `e_invoice`

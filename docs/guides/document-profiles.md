@@ -4,7 +4,7 @@ description: Resolve package-defined profiles and validate explicit invoice prer
 order: 8
 ---
 
-The profiles API is unreleased. It reads a versioned catalog supplied by a template package;
+The profiles API reads a versioned catalog supplied by a template package;
 there is no hardcoded country selection in the compiler. The coordinated business-templates
 package supplies `profiles/catalog.json` and its schemas/fixtures. Basic compilation remains
 independent of the optional `zugferd` feature, which enables these invoice profile commands.
@@ -72,8 +72,7 @@ Amounts use four-place input precision and round half away from zero to two deci
 no currency conversion, gross-price calculation or document allowances are added.
 
 [Configuration schema, editable default and complete example](https://github.com/casoon/typst-business-templates/blob/main/docs/guides/invoice-configuration.md)
-live in the template package repository. This command requires the coordinated unreleased
-build; it is not part of the published 0.5.0 crate.
+live in the template package repository.
 
 Configurations also accept `tax_model: "sales-tax"` with named additive components instead
 of VAT categories. Each component has an ID, label and percentage; its taxable basis and
