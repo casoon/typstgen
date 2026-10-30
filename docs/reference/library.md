@@ -57,6 +57,19 @@ let config = Config {
 };
 ```
 
+### Invoices, profiles and archives
+
+These modules sit behind Cargo features that are on by default (`zugferd`, `archive`); with
+`--no-default-features`, enable the ones you need.
+
+| Item | Purpose |
+| --- | --- |
+| `zugferd::xml_from_docgen(invoice_json, company_json) -> Result<String>` | Checks a business-templates invoice and returns its CII XML (EN 16931). Pass the bytes as `CompileOptions::zugferd_xml` with `PdfStandard::A3b` to embed them as `factur-x.xml`. See [E-invoices](../../guides/e-invoices/). |
+| `zugferd::ubl_xml_from_docgen(format, invoice_json, company_json) -> Result<String>` | The same invoice as UBL 2.1 XML; `format` is `UblFormat::XRechnung30` or `UblFormat::PeppolBis30`. |
+| `invoice_config::prepare_invoice(config, request) -> Value` | Invoice amounts, tax groups and rendering data from a user-owned configuration. |
+| `profiles::list_document_profiles`, `resolve_document_profile`, `validate_document` | Profile listing, selection and invoice validation against a package catalog. See [Document profiles](../../guides/document-profiles/). |
+| `archive::compile_and_record`, `archive::verify` | Record builds in a manifest and verify them later. See [Archiving](../../guides/archiving/). |
+
 ### Errors
 
 | Variant | When |
@@ -66,6 +79,8 @@ let config = Config {
 | `InvalidConfig` | The config file is not valid TOML for `Config`. |
 | `Compile` | Typst reported errors; the message lists them as `path:line:column: error: …` with their hints, followed by any warnings. |
 | `PageOutOfRange` | `render_png` was asked for a page the document does not have. |
+| `Zugferd` | The invoice data has problems; the message lists one per line, starting with the JSON field to fix. |
+| `Archive` | A manifest cannot be read, written or verified. |
 | `Io` | Any other I/O error, for example reading the input. |
 
 ## Wasm

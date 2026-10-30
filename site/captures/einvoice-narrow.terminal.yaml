@@ -1,0 +1,18 @@
+# Narrow version of einvoice.terminal.yaml for phones. Plays the captured runs in einvoice-*.txt (see capture.sh): an invoice written as XRechnung, then
+# the same invoice without electronic address and Leitweg-ID.
+version: 1
+terminal:
+  title: typstgen e-invoice
+  cols: 44
+  rows: 15
+  theme: catppuccin-mocha
+steps:
+  - run: typstgen e-invoice --format xrechnung-3.0 --company company.json invoice.json
+  - wait: 600
+  - show: einvoice-ok.txt
+    lang: text
+  - run: typstgen e-invoice --format xrechnung-3.0 --company company.json incomplete.json
+  - wait: 600
+  - show: einvoice-missing.txt
+    lang: text
+  - wait: 5000

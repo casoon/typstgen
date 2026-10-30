@@ -3,7 +3,7 @@
 # checkout on a temporary copy of examples/, so the committed PDFs stay untouched.
 #   site/captures/capture.sh
 # Rebuild the SVG after a capture:
-#   cd site/captures && npx -y -p @casoon/castwright@0.5.0 -p shiki castwright build compile.terminal.yaml --format svg -o . && npx -y -p @casoon/castwright@0.5.0 -p shiki castwright build compile-narrow.terminal.yaml --format svg -o .
+#   cd site/captures && npx -y -p @casoon/castwright@0.5.0 -p shiki castwright build compile.terminal.yaml --format svg -o . && npx -y -p @casoon/castwright@0.5.0 -p shiki castwright build compile-narrow.terminal.yaml --format svg -o . && npx -y -p @casoon/castwright@0.5.0 -p shiki castwright build einvoice.terminal.yaml --format svg -o . && npx -y -p @casoon/castwright@0.5.0 -p shiki castwright build einvoice-narrow.terminal.yaml --format svg -o .
 set -euo pipefail
 
 here="$(cd "$(dirname "$0")" && pwd)"
@@ -23,6 +23,23 @@ if "$bin" compile missing-import.typ 2> "$here/compile-missing.txt"; then
   exit 1
 else
   echo "$?" > "$here/exit-missing.txt"
+fi
+
+# The invoice scene: the test fixture as XRechnung, then the same invoice without the two fields
+# XRechnung adds to EN 16931 (electronic address and Leitweg-ID).
+cp "$repo/tests/fixtures/zugferd/invoice.json" "$repo/tests/fixtures/zugferd/company.json" "$work/"
+python3 - "$work" <<'PY'
+import json, sys
+path = sys.argv[1]
+invoice = json.load(open(f"{path}/invoice.json"))
+del invoice["recipient"]["electronic_address"]
+del invoice["metadata"]["buyer_reference"]
+json.dump(invoice, open(f"{path}/incomplete.json", "w"), indent=2)
+PY
+"$bin" e-invoice --format xrechnung-3.0 --company company.json invoice.json 2> "$here/einvoice-ok.txt"
+if "$bin" e-invoice --format xrechnung-3.0 --company company.json incomplete.json 2> "$here/einvoice-missing.txt"; then
+  echo "error: incomplete.json was accepted, expected a failure" >&2
+  exit 1
 fi
 
 # The first page of the committed letter.pdf as the picture beside the terminal, cropped to the

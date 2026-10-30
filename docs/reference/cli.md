@@ -14,10 +14,15 @@ Compile .typ files to PDF with an embedded Typst engine
 Usage: typstgen <COMMAND>
 
 Commands:
-  compile  Compile a single .typ file to PDF
-  verify   Check the PDFs recorded in a manifest: unchanged, same sources, identical rebuild
-  mcp      Serve the Model Context Protocol on stdin/stdout for AI agents
-  help     Print this message or the help of the given subcommand(s)
+  compile                   Compile a single .typ file to PDF
+  list-document-profiles    List the capabilities declared by a template package catalog
+  resolve-document-profile  Resolve an explicit profile selection JSON without changing its country rules
+  validate-document         Check invoice data, declared facts and profile rules; does not transmit invoices
+  prepare-invoice           Build invoice values from a user-owned tax and presentation configuration
+  e-invoice                 Write a pure-XML e-invoice (XRechnung 3.0 or Peppol BIS Billing 3.0, UBL 2.1) from a business-templates invoice JSON; does not send it
+  verify                    Check the PDFs recorded in a manifest: unchanged, same sources, identical rebuild
+  mcp                       Serve the Model Context Protocol on stdin/stdout for AI agents
+  help                      Print this message or the help of the given subcommand(s)
 
 Options:
   -h, --help     Print help
@@ -86,6 +91,92 @@ missing-import.typ:2:9: error: file not found (searched at /footer.typ)
 
 This exact output is the `missing-import` example in the [showcase](../../../showcase/missing-import/).
 On success, warnings go to stderr in the same `path:line:column: warning: …` form.
+
+## typstgen prepare-invoice
+
+```text
+Build invoice values from a user-owned tax and presentation configuration
+
+Usage: typstgen prepare-invoice --config <CONFIG> <REQUEST>
+
+Arguments:
+  <REQUEST>  
+
+Options:
+      --config <CONFIG>  
+  -h, --help             Print help
+```
+
+Reads an invoice request and a user-owned configuration (named VAT taxes or additive sales-tax
+components, required fields, notes, presentation) and prints the canonical invoice values as JSON:
+line amounts, tax groups and totals, calculated with exact decimal arithmetic. Exits with code `1` when the report's `status` is
+`blocked`. Described in
+[Document profiles](../../guides/document-profiles/#user-owned-invoice-configuration).
+
+## typstgen e-invoice
+
+```text
+Write a pure-XML e-invoice (XRechnung 3.0 or Peppol BIS Billing 3.0, UBL 2.1) from a business-templates invoice JSON; does not send it
+
+Usage: typstgen e-invoice [OPTIONS] --company <COMPANY_JSON> --format <FORMAT> <INVOICE>
+
+Arguments:
+  <INVOICE>  The business-templates invoice JSON
+
+Options:
+      --company <COMPANY_JSON>  company.json with the seller's data
+      --format <FORMAT>         Target format: xrechnung-3.0 or peppol-bis-3.0
+  -o, --output <OUTPUT>         Output XML path (defaults to the invoice path with .xml extension)
+  -h, --help                    Print help
+```
+
+Writes the invoice as UBL 2.1 XML. Missing or invalid fields are listed by JSON path and the command
+exits with code `1`. Schema and Schematron validation are reported as `not_run`; writing the file
+does not send it. Described in [E-invoices](../../guides/e-invoices/#xrechnung-and-peppol-bis-billing).
+
+## Document profiles
+
+`list-document-profiles`, `resolve-document-profile` and `validate-document` read a profile catalog
+supplied by a template package and print a JSON report; they exit with code `1` when its `status`
+is `blocked`. Described in
+[Document profiles](../../guides/document-profiles/).
+
+```text
+List the capabilities declared by a template package catalog
+
+Usage: typstgen list-document-profiles [OPTIONS] --catalog <CATALOG>
+
+Options:
+      --catalog <CATALOG>  
+      --include-drafts     
+  -h, --help               Print help
+```
+
+```text
+Resolve an explicit profile selection JSON without changing its country rules
+
+Usage: typstgen resolve-document-profile --catalog <CATALOG> <SELECTION>
+
+Arguments:
+  <SELECTION>  
+
+Options:
+      --catalog <CATALOG>  
+  -h, --help               Print help
+```
+
+```text
+Check invoice data, declared facts and profile rules; does not transmit invoices
+
+Usage: typstgen validate-document --catalog <CATALOG> <REQUEST>
+
+Arguments:
+  <REQUEST>  
+
+Options:
+      --catalog <CATALOG>  
+  -h, --help               Print help
+```
 
 ## typstgen mcp
 

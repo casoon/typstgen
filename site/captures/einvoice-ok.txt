@@ -1,0 +1,2 @@
+wrote invoice.xml (xrechnung-3.0, UBL 2.1)
+checks: arithmetic passed, required_fields passed, xml_schema not_run, en16931 not_run, xrechnung not_run, transmission not_run

@@ -8,6 +8,7 @@ import {
   Hero,
   Install,
   Quickstart,
+  Spotlight,
 } from '@casoon/pages-theme/components';
 import Base from '@casoon/pages-theme/layouts/Base.astro';
 import config from 'virtual:casoon-pages/config';
@@ -16,6 +17,9 @@ import { url } from '@casoon/pages-theme/url';
 // capture.sh); the narrow one is for phones. letter-page.webp is page 1 of examples/letter.pdf.
 import compileNarrowSvg from '../../captures/compile-narrow.svg?url';
 import compileSvg from '../../captures/compile.svg?url';
+// einvoice*.svg: the same kind of capture for typstgen e-invoice (see capture.sh).
+import einvoiceNarrowSvg from '../../captures/einvoice-narrow.svg?url';
+import einvoiceSvg from '../../captures/einvoice.svg?url';
 import fontsPage from '../../captures/fonts-page.webp?url';
 import letterPage from '../../captures/letter-page.webp?url';
 import thesisPage from '../../captures/thesis-page.webp?url';
@@ -89,7 +93,7 @@ import Diagram from '../components/Diagram.astro';
     items={[
       { value: '0', label: 'typst binaries or subprocesses needed' },
       { value: '4', label: 'ways in: CLI, Rust library, Wasm, MCP server' },
-      { value: '4', label: 'MCP tools: check, preview, compile, list_templates' },
+      { value: '9', label: 'MCP tools, from check and preview to e-invoices' },
       { value: '17', label: 'bundled font files, also in Wasm' },
     ]}
   />
@@ -124,7 +128,7 @@ import Diagram from '../components/Diagram.astro';
       },
       {
         title: 'PDF/A, PDF/UA and e-invoices',
-        body: 'Enforce PDF/A-2b or PDF/UA-1, and embed ZUGFeRD / Factur-X invoice data for EN 16931.',
+        body: 'Enforce PDF/A-2b or PDF/UA-1. Embed ZUGFeRD / Factur-X data in the PDF, or write XRechnung and Peppol XML.',
       },
       {
         title: 'Archives you can prove',
@@ -132,6 +136,33 @@ import Diagram from '../components/Diagram.astro';
       },
     ]}
   />
+
+  <Spotlight
+    eyebrow="Invoices"
+    title="One invoice JSON, every format"
+    lead="The invoice template of the Typst package `business-templates` renders the PDF from an invoice JSON. typstgen reads the same file for the machine-readable versions, so the PDF and the XML cannot disagree."
+    points={[
+      '**ZUGFeRD / Factur-X:** `--zugferd invoice.json` embeds the EN 16931 data in a PDF/A-3b.',
+      '**XRechnung 3.0 and Peppol BIS Billing 3.0:** `typstgen e-invoice` writes UBL 2.1 XML.',
+      '**Your own tax rules:** `prepare-invoice` calculates line amounts, tax groups and totals from your configuration, VAT or sales tax.',
+      '**Clear errors:** every problem names the JSON field to fix. Nothing is sent; validation and transmission stay separate steps.',
+    ]}
+    links={[
+      { label: 'E-invoices', href: url('docs/guides/e-invoices/') },
+      { label: 'Invoice configuration', href: url('docs/guides/document-profiles/') },
+      { label: 'business-templates', href: 'https://github.com/casoon/typst-business-templates' },
+    ]}
+  >
+    <picture class="terminal-demo">
+      <source media="(max-width: 640px)" srcset={einvoiceNarrowSvg} width="393.6" height="314" />
+      <img
+        src={einvoiceSvg}
+        width="511.2"
+        height="296"
+      alt="Terminal: typstgen e-invoice --format xrechnung-3.0 --company company.json invoice.json prints 'wrote invoice.xml (xrechnung-3.0, UBL 2.1)' and the checks: arithmetic and required fields passed, XML schema, EN 16931, XRechnung and transmission not run. The same command on incomplete.json fails and names the missing fields recipient.electronic_address and metadata.buyer_reference (the Leitweg-ID for public buyers)."
+      />
+    </picture>
+  </Spotlight>
 
   <Quickstart
     lead="From a .typ file to a PDF in three steps. Every PDF on this page was compiled by typstgen from the files in examples/."

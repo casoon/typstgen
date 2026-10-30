@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { ansiToHtml } from '@casoon/pages-theme/ansi';
-import { url } from '@casoon/pages-theme/lib/url.ts';
+import { url } from '@casoon/pages-theme/url';
 import type { ShowcaseExample } from '@casoon/pages-theme/showcase';
 
 // Everything shown here comes from examples/: each .typ source sits next to the PDF that the
