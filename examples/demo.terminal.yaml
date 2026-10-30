@@ -14,8 +14,9 @@ steps:
   - output:
       raw: |
         letter.pdf
+  - wait: 1200
   - run: file letter.pdf
   - output:
       raw: |
         letter.pdf: PDF document, version 1.7, 1 pages
-  - wait: 2500
+  - wait: 5000
