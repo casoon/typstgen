@@ -6,6 +6,15 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Changed
+
+- **Website:** the start page has a section on invoices with a real `typstgen e-invoice` run, and
+  counts all nine MCP tools.
+- **Docs:** the [CLI reference](https://casoon.github.io/typstgen/docs/reference/cli/) covers
+  `prepare-invoice`, `e-invoice` and the document-profile commands, the
+  [AI agents guide](https://casoon.github.io/typstgen/docs/guides/ai-agents/#tools) lists every
+  MCP tool, and the README starts with what typstgen does and how it works.
+
 ## [0.6.0] - 2026-10-30
 
 ### Added

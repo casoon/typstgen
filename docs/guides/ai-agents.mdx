@@ -37,8 +37,13 @@ packages resolve as with `typstgen compile`.
 | --- | --- | --- |
 | `check` | `path`, `inputs`, `creation_timestamp` | `ok, N pages` and warnings, or every error as `path:line:column: error: …` with hints. Writes nothing. |
 | `preview` | `path`, `page` (default 1), `scale` (pixels per point, default 1.5), `inputs`, `creation_timestamp` | One page as a PNG image. |
-| `compile` | `path`, `output`, `pdf_standards` (e.g. `["a-2b"]`), `inputs`, `creation_timestamp` | `wrote <file> (<bytes> bytes), N pages` and warnings. |
+| `compile` | `path`, `output`, `pdf_standards` (e.g. `["a-2b"]`), `inputs`, `creation_timestamp`, `zugferd` (`invoice`, `company`; with `["a-3b"]`) | `wrote <file> (<bytes> bytes), N pages` and warnings. |
 | `list_templates` | – | Every `.typ` file in the template directories, with its first `//` comment as description. |
+| `e_invoice` | `invoice`, `company`, `format` (`xrechnung-3.0` or `peppol-bis-3.0`), `output` | Writes UBL 2.1 XML and returns the check states, or the problems per JSON field. Sends nothing. See [E-invoices](../e-invoices/#xrechnung-and-peppol-bis-billing). |
+| `prepare_invoice` | `config`, `request` | Invoice amounts, tax groups and rendering data from a user-owned configuration. |
+| `list_document_profiles` | `catalog`, `include_drafts` | The profiles a template package's catalog declares. |
+| `resolve_document_profile` | `catalog`, `selection` | The resolved profile, or unsupported choices and missing fields. |
+| `validate_document` | `catalog`, `request` | Field paths, rule IDs and normalized invoice data. See [Document profiles](../document-profiles/). |
 
 Errors are tool results, not protocol errors, so the agent sees them and can react:
 

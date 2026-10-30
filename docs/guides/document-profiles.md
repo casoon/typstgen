@@ -1,13 +1,22 @@
 ---
 title: Document profiles
-description: Resolve package-defined profiles and validate explicit invoice prerequisites using the CLI, Rust library or MCP.
-order: 8
+description: Pick an invoice variant from a template package's catalog and check the invoice data against its rules before rendering, from the CLI, Rust or MCP.
+order: 7
 ---
 
-The profiles API reads a versioned catalog supplied by a template package;
-there is no hardcoded country selection in the compiler. The coordinated business-templates
-package supplies `profiles/catalog.json` and its schemas/fixtures. Basic compilation remains
-independent of the optional `zugferd` feature, which enables these invoice profile commands.
+An invoice template usually supports more than one variant: different countries and tax cases,
+languages, layouts and output formats. A **document profile** names one such variant and the rules
+an invoice has to meet for it. The template package describes its profiles in a catalog; typstgen
+lists them, resolves an explicit choice, and checks an invoice against it before anything is
+rendered. Problems come back with the JSON field to fix.
+
+Use this when invoices for several countries or tax cases come out of one template, or when an
+agent should check invoice data before compiling it. For a single invoice layout,
+[`--zugferd`](../e-invoices/) and the invoice template are enough.
+
+typstgen itself contains no country rules: the catalog comes from the template package (the
+business-templates package ships `profiles/catalog.json` with its schemas and fixtures). The
+commands need the `zugferd` feature, which is on by default.
 
 ```sh
 typstgen list-document-profiles --catalog path/to/profiles/catalog.json
@@ -41,8 +50,9 @@ Individual check states cover schema, business rules, arithmetic, EN16931, outpu
 PDF/A and transmission. External checks remain `not_run` until actually executed; neither a
 normalized invoice nor a compiled PDF is a full legal validation or delivery receipt.
 The existing `--zugferd` path uses CII EN16931; use exactly the same canonical data as the PDF,
-then validate the hybrid artifact externally. Profile resolution does not promise an
-unimplemented XRechnung, Peppol or national transmission adapter.
+then validate the hybrid artifact externally. Pure-XML XRechnung and Peppol output is the
+separate command [`e-invoice`](../e-invoices/#xrechnung-and-peppol-bis-billing); profile
+resolution does not select it, and nothing is transmitted.
 
 The cross-repository synthetic integration check is
 `typst-business-templates/scripts/check-profiles.py --typstgen /path/to/typstgen`, optionally
@@ -51,10 +61,12 @@ skipped stages. See the package's invoice-profile guide for the supported bounde
 
 ## User-owned invoice configuration
 
-For configurable tax rates and presentation without a national catalog, use:
+Without a catalog, `prepare-invoice` takes your own tax rates and presentation settings and
+calculates the invoice values (line amounts, tax groups, totals) that the template and the
+e-invoice XML then use:
 
 ```sh
-typstgen prepare-invoice --config invoice-config.json invoice.json > resolved.json
+typstgen prepare-invoice --config invoice-config.json request.json > resolved.json
 ```
 
 The configuration declares version `1`, `presentation` (language, format_locale, currency,
