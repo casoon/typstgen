@@ -82,9 +82,9 @@ let pdf_bytes = compile("example.typ".as_ref(), &config)?;
 std::fs::write("example.pdf", pdf_bytes)?;
 ```
 
-## Invoice preparation (development build)
+## Invoice preparation
 
-The source build also exposes `prepare-invoice --config invoice-config.json invoice.json`,
+`prepare-invoice --config invoice-config.json invoice.json` builds canonical invoice values,
 shared with the Rust library and MCP. User-owned configuration selects named VAT taxes or
 additive sales-tax components, required fields, notes and presentation; missing totals are
 calculated with exact decimal arithmetic. VAT values can feed the CII adapter; sales-tax
@@ -95,9 +95,6 @@ same VAT invoice as UBL 2.1 XML (also as Rust function and MCP tool). Missing fi
 by JSON path; schema and Schematron validation are reported as `not_run`, and writing the file is
 not a transmission. See [e-invoices](docs/guides/e-invoices.mdx).
 
-These commands are **not in the published 0.5.0 crate**. The template package pins the
-coordinated Git revision in
-[tool-versions.json](https://github.com/casoon/typst-business-templates/blob/main/tool-versions.json).
 See [document profiles and invoice configuration](docs/guides/document-profiles.md) for CLI,
 Rust and MCP contracts. National applicability and transmission are separate concerns.
 
