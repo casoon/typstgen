@@ -186,7 +186,9 @@ const nav = [
   }
   /* Narrow screens: name and theme toggle on the first row, the links on a second row that
      stays one line and scrolls sideways when it does not fit — no wrapped labels, nothing cut
-     off. A header with a website pill or a demo entry needs the second row earlier. */
+     off. A header with a website pill or a demo entry needs the second row earlier. The website
+     pill is dropped from that row: it repeats in the footer's "Project" column, and it was the
+     single widest entry, pushing GitHub out of view. */
   @media (max-width: 640px) {
     :global(:root) {
       --header-h: 92px;
@@ -207,6 +209,9 @@ const nav = [
       padding: 3px 8px;
       overflow-x: auto;
       scrollbar-width: none;
+    }
+    .website {
+      display: none;
     }
     .theme {
       margin-left: auto;
@@ -241,6 +246,9 @@ const nav = [
       padding: 3px 8px;
       overflow-x: auto;
       scrollbar-width: none;
+    }
+    [data-wide] .website {
+      display: none;
     }
     [data-wide] .theme {
       margin-left: auto;
