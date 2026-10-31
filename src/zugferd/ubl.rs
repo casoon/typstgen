@@ -120,6 +120,21 @@ pub(crate) fn check(format: UblFormat, invoice: &Invoice) -> Result<(), Vec<Stri
                     problems.push(format!("{path}: required by XRechnung (seller contact)"));
                 }
             }
+            // BR-DE-10 and BR-DE-11: a deliver-to address needs city and post code.
+            if invoice.delivery_country.is_some() {
+                if invoice.delivery_city.is_none() {
+                    problems.push(
+                        "metadata.delivery_city: required by XRechnung when metadata.delivery_country_code is given"
+                            .to_owned(),
+                    );
+                }
+                if invoice.delivery_postal_code.is_none() {
+                    problems.push(
+                        "metadata.delivery_postal_code: required by XRechnung when metadata.delivery_country_code is given"
+                            .to_owned(),
+                    );
+                }
+            }
             // BR-DE-1; a credit transfer (30, 58) needs the account (BG-17).
             match payment_means_code(invoice) {
                 None => problems.push(
@@ -340,6 +355,12 @@ pub(crate) fn write(format: UblFormat, invoice: &Invoice) -> String {
             // BT-80.
             open(&mut out, 4, "cac:DeliveryLocation");
             open(&mut out, 6, "cac:Address");
+            if let Some(city) = &invoice.delivery_city {
+                el(&mut out, 8, "cbc:CityName", city);
+            }
+            if let Some(code) = &invoice.delivery_postal_code {
+                el(&mut out, 8, "cbc:PostalZone", code);
+            }
             open(&mut out, 8, "cac:Country");
             el(&mut out, 10, "cbc:IdentificationCode", country);
             close(&mut out, 8, "cac:Country");

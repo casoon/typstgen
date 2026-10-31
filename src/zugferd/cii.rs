@@ -214,6 +214,12 @@ pub fn write(invoice: &Invoice) -> String {
             // BT-80.
             open(&mut out, 6, "ram:ShipToTradeParty");
             open(&mut out, 8, "ram:PostalTradeAddress");
+            if let Some(code) = &invoice.delivery_postal_code {
+                el(&mut out, 10, "ram:PostcodeCode", code);
+            }
+            if let Some(city) = &invoice.delivery_city {
+                el(&mut out, 10, "ram:CityName", city);
+            }
             el(&mut out, 10, "ram:CountryID", country);
             close(&mut out, 8, "ram:PostalTradeAddress");
             close(&mut out, 6, "ram:ShipToTradeParty");

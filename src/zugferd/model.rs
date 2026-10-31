@@ -112,6 +112,9 @@ pub struct Invoice {
     pub order_reference: Option<String>,
     /// BT-80: deliver-to country code (ISO 3166-1 alpha-2).
     pub delivery_country: Option<String>,
+    /// BT-77 / BT-78: deliver-to city and post code.
+    pub delivery_city: Option<String>,
+    pub delivery_postal_code: Option<String>,
 }
 
 /// Collects every problem instead of stopping at the first.
@@ -732,6 +735,8 @@ impl Invoice {
             &mut problems,
         );
         let delivery_country = optional(invoice, "metadata.delivery_country_code");
+        let delivery_city = optional(invoice, "metadata.delivery_city");
+        let delivery_postal_code = optional(invoice, "metadata.delivery_postal_code");
         if delivery_country
             .as_deref()
             .is_some_and(|code| code.len() != 2 || !code.chars().all(|c| c.is_ascii_uppercase()))
@@ -780,6 +785,8 @@ impl Invoice {
             buyer_reference: optional(invoice, "metadata.buyer_reference"),
             order_reference: optional(invoice, "metadata.order_reference"),
             delivery_country,
+            delivery_city,
+            delivery_postal_code,
         })
     }
 }

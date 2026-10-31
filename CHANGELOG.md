@@ -10,8 +10,9 @@ All notable changes to this project are documented in this file. The format is b
 
 - **E-invoices:** VAT codes `IntraCommunity` (category K, exemption code `VATEX-EU-IC`) and `Export` (category G,
   `VATEX-EU-G`) for CII and UBL. An intra-Community supply needs the buyer's VAT ID, a delivery date or
-  period and the new `metadata.delivery_country_code` (BT-80, written to both formats); an export needs
-  none of these. Defaults can be overridden with `vat_rate.exemption_reason_code`.
+  period and the new `metadata.delivery_country_code` (BT-80, written to both formats, with optional
+  `delivery_city` and `delivery_postal_code`, which XRechnung requires once a country is given); an export
+  needs none of these. Defaults can be overridden with `vat_rate.exemption_reason_code`.
 
 ## [0.6.1] - 2026-10-31
 

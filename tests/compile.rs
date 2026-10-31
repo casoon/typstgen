@@ -843,7 +843,7 @@ mod zugferd {
                 )
                 .replace(
                     "\"performance_period\": \"09/2026\"",
-                    "\"performance_period\": \"09/2026\", \"delivery_country_code\": \"AT\"",
+                    "\"performance_period\": \"09/2026\", \"delivery_country_code\": \"AT\", \"delivery_city\": \"Wien\", \"delivery_postal_code\": \"1010\"",
                 )
                 .replace("\"amount\": \"458.79\"", "\"amount\": \"0\"")
                 .replace("\"amount\": \"2898.69\"", "\"amount\": \"2439.90\"")
@@ -874,6 +874,11 @@ mod zugferd {
                 assert!(delivery < xml.find("<cac:DeliveryLocation>").unwrap());
             }
             let cii = typstgen::zugferd::xml_from_docgen(&invoice, &company).expect("valid supply");
+            assert!(cii.contains("<ram:CityName>Wien</ram:CityName>"), "{cii}");
+            assert!(
+                cii.contains("<ram:PostcodeCode>1010</ram:PostcodeCode>"),
+                "{cii}"
+            );
             assert!(cii.contains(&format!("<ram:CategoryCode>{category}</ram:CategoryCode>")));
             assert!(cii.contains(&format!(
                 "<ram:ExemptionReasonCode>{exemption}</ram:ExemptionReasonCode>"
@@ -882,6 +887,11 @@ mod zugferd {
             assert!(cii.contains("<ram:CountryID>AT</ram:CountryID>"));
             assert!(ship_to < cii.find("<ram:ApplicableHeaderTradeSettlement>").unwrap());
         }
+        // XRechnung (BR-DE-10/11) wants city and post code once a delivery country is given.
+        let no_city = supply("Export").replace(", \"delivery_city\": \"Wien\"", "");
+        let error = ubl(UblFormat::XRechnung30, &no_city, &company).unwrap_err();
+        assert!(error.contains("metadata.delivery_city"), "{error}");
+        assert!(ubl(UblFormat::PeppolBis30, &no_city, &company).is_ok());
         // BR-IC-02 / BR-IC-12: the buyer's VAT ID and the delivery country are required.
         let missing_country =
             supply("IntraCommunity").replace(", \"delivery_country_code\": \"AT\"", "");
