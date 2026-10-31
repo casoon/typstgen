@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [0.6.2] - 2026-10-31
+
 ### Added
 
 - **E-invoices:** VAT codes `IntraCommunity` (category K, exemption code `VATEX-EU-IC`) and `Export` (category G,
