@@ -51,8 +51,10 @@ PDF/A and transmission. External checks remain `not_run` until actually executed
 normalized invoice nor a compiled PDF is a full legal validation or delivery receipt.
 The existing `--zugferd` path uses CII EN16931; use exactly the same canonical data as the PDF,
 then validate the hybrid artifact externally. Pure-XML XRechnung and Peppol output is the
-separate command [`e-invoice`](../e-invoices/#xrechnung-and-peppol-bis-billing); profile
-resolution does not select it, and nothing is transmitted.
+separate command [`e-invoice`](../e-invoices/#xrechnung-and-peppol-bis-billing). A catalog may
+list `xrechnung-3.0` or `peppol-bis-3.0` among a profile's `outputs`; selecting one makes
+`validate-document` report the fields `e-invoice` requires (`OUTPUT-REQUIRED`, with JSON paths),
+using the same check. The XML itself is still written by `e-invoice`, and nothing is transmitted.
 
 The cross-repository synthetic integration check is
 `typst-business-templates/scripts/check-profiles.py --typstgen /path/to/typstgen`, optionally
