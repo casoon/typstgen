@@ -822,6 +822,97 @@ mod zugferd {
     }
 
     #[test]
+    fn intra_community_and_export_use_their_own_categories() {
+        let supply = |code: &str| {
+            fixture("invoice.json")
+                .replace(
+                    "{ \"code\": \"Standard\", \"percentage\": \"19\" }",
+                    &format!("{{ \"code\": \"{code}\", \"percentage\": \"0\" }}"),
+                )
+                .replace(
+                    "{ \"code\": \"Reduced\", \"percentage\": \"7\" }",
+                    &format!("{{ \"code\": \"{code}\", \"percentage\": \"0\" }}"),
+                )
+                .replace(
+                    "\"city\": \"Hamburg\"",
+                    "\"city\": \"Wien\", \"country_code\": \"AT\"",
+                )
+                .replace(
+                    "\"company\": \"Example Ltd\",",
+                    "\"company\": \"Example Ltd\", \"vat_id\": \"ATU12345678\",",
+                )
+                .replace(
+                    "\"performance_period\": \"09/2026\"",
+                    "\"performance_period\": \"09/2026\", \"delivery_country_code\": \"AT\", \"delivery_city\": \"Wien\", \"delivery_postal_code\": \"1010\"",
+                )
+                .replace("\"amount\": \"458.79\"", "\"amount\": \"0\"")
+                .replace("\"amount\": \"2898.69\"", "\"amount\": \"2439.90\"")
+        };
+        let company = fixture("company.json");
+        for (code, category, exemption) in [
+            ("IntraCommunity", "K", "VATEX-EU-IC"),
+            ("Export", "G", "VATEX-EU-G"),
+        ] {
+            let invoice = supply(code);
+            for format in UblFormat::ALL {
+                let xml = ubl(format, &invoice, &company).expect("valid supply");
+                assert!(
+                    xml.contains(&format!("<cbc:ID>{category}</cbc:ID>")),
+                    "{xml}"
+                );
+                assert!(
+                    xml.contains(&format!(
+                        "<cbc:TaxExemptionReasonCode>{exemption}</cbc:TaxExemptionReasonCode>"
+                    )),
+                    "{xml}"
+                );
+                assert!(
+                    xml.contains("<cbc:IdentificationCode>AT</cbc:IdentificationCode>"),
+                    "{xml}"
+                );
+                let delivery = xml.find("<cac:Delivery>").unwrap();
+                assert!(delivery < xml.find("<cac:DeliveryLocation>").unwrap());
+            }
+            let cii = typstgen::zugferd::xml_from_docgen(&invoice, &company).expect("valid supply");
+            assert!(cii.contains("<ram:CityName>Wien</ram:CityName>"), "{cii}");
+            assert!(
+                cii.contains("<ram:PostcodeCode>1010</ram:PostcodeCode>"),
+                "{cii}"
+            );
+            assert!(cii.contains(&format!("<ram:CategoryCode>{category}</ram:CategoryCode>")));
+            assert!(cii.contains(&format!(
+                "<ram:ExemptionReasonCode>{exemption}</ram:ExemptionReasonCode>"
+            )));
+            let ship_to = cii.find("<ram:ShipToTradeParty>").unwrap();
+            assert!(cii.contains("<ram:CountryID>AT</ram:CountryID>"));
+            assert!(ship_to < cii.find("<ram:ApplicableHeaderTradeSettlement>").unwrap());
+        }
+        // XRechnung (BR-DE-10/11) wants city and post code once a delivery country is given.
+        let no_city = supply("Export").replace(", \"delivery_city\": \"Wien\"", "");
+        let error = ubl(UblFormat::XRechnung30, &no_city, &company).unwrap_err();
+        assert!(error.contains("metadata.delivery_city"), "{error}");
+        assert!(ubl(UblFormat::PeppolBis30, &no_city, &company).is_ok());
+        // BR-IC-02 / BR-IC-12: the buyer's VAT ID and the delivery country are required.
+        let missing_country =
+            supply("IntraCommunity").replace(", \"delivery_country_code\": \"AT\"", "");
+        let error = typstgen::zugferd::xml_from_docgen(&missing_country, &company)
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("metadata.delivery_country_code"), "{error}");
+        let missing_vat_id = supply("IntraCommunity").replace("\"vat_id\": \"ATU12345678\",", "");
+        let error = typstgen::zugferd::xml_from_docgen(&missing_vat_id, &company)
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("recipient.vat_id"), "{error}");
+        // An export needs neither.
+        assert!(typstgen::zugferd::xml_from_docgen(
+            &supply("Export").replace("\"vat_id\": \"ATU12345678\",", ""),
+            &company
+        )
+        .is_ok());
+    }
+
+    #[test]
     fn ubl_formats_handle_zero_rated_and_mixed_tax() {
         let reverse = "{ \"code\": \"ReverseCharge\", \"percentage\": \"0\" }";
         let exempt = "{ \"code\": \"Exempt\", \"percentage\": \"0\", \"exemption_reason\": \"§ 4 Nr. 21 UStG\" }";

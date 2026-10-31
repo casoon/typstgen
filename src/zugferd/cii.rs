@@ -205,16 +205,31 @@ pub fn write(invoice: &Invoice) -> String {
     party(&mut out, 6, "ram:BuyerTradeParty", &invoice.buyer);
     close(&mut out, 4, "ram:ApplicableHeaderTradeAgreement");
 
-    match &invoice.delivery_date {
-        Some(delivery) => {
-            open(&mut out, 4, "ram:ApplicableHeaderTradeDelivery");
+    if invoice.delivery_date.is_none() && invoice.delivery_country.is_none() {
+        // Required by the schema even without data.
+        out.push_str("    <ram:ApplicableHeaderTradeDelivery/>\n");
+    } else {
+        open(&mut out, 4, "ram:ApplicableHeaderTradeDelivery");
+        if let Some(country) = &invoice.delivery_country {
+            // BT-80.
+            open(&mut out, 6, "ram:ShipToTradeParty");
+            open(&mut out, 8, "ram:PostalTradeAddress");
+            if let Some(code) = &invoice.delivery_postal_code {
+                el(&mut out, 10, "ram:PostcodeCode", code);
+            }
+            if let Some(city) = &invoice.delivery_city {
+                el(&mut out, 10, "ram:CityName", city);
+            }
+            el(&mut out, 10, "ram:CountryID", country);
+            close(&mut out, 8, "ram:PostalTradeAddress");
+            close(&mut out, 6, "ram:ShipToTradeParty");
+        }
+        if let Some(delivery) = &invoice.delivery_date {
             open(&mut out, 6, "ram:ActualDeliverySupplyChainEvent");
             date(&mut out, 8, "ram:OccurrenceDateTime", delivery);
             close(&mut out, 6, "ram:ActualDeliverySupplyChainEvent");
-            close(&mut out, 4, "ram:ApplicableHeaderTradeDelivery");
         }
-        // Required by the schema even without data.
-        None => out.push_str("    <ram:ApplicableHeaderTradeDelivery/>\n"),
+        close(&mut out, 4, "ram:ApplicableHeaderTradeDelivery");
     }
 
     open(&mut out, 4, "ram:ApplicableHeaderTradeSettlement");
