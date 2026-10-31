@@ -48,10 +48,10 @@ pub struct Endpoint {
 /// VAT category (UNTDID 5305) with what EN 16931 needs for it.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize)]
 pub struct Tax {
-    /// S, Z, E or AE.
+    /// S, Z, E, AE, K (intra-Community supply) or G (export outside the EU).
     pub category: &'static str,
     pub rate: Dec,
-    /// BT-120 (text) or BT-121 (code) for E and AE.
+    /// BT-120 (text) or BT-121 (code) for E, AE, K and G.
     pub exemption_reason: Option<String>,
     pub exemption_code: Option<String>,
 }
@@ -110,6 +110,8 @@ pub struct Invoice {
     pub buyer_reference: Option<String>,
     /// BT-13: purchase order reference.
     pub order_reference: Option<String>,
+    /// BT-80: deliver-to country code (ISO 3166-1 alpha-2).
+    pub delivery_country: Option<String>,
 }
 
 /// Collects every problem instead of stopping at the first.
@@ -304,11 +306,13 @@ fn tax(item: &Value, buyer_has_vat_id: bool, problems: &mut Problems, label: &st
     let reason_code = optional(item, "vat_rate.exemption_reason_code");
     let category = match code.as_str() {
         "reversecharge" | "reverse_charge" | "reverse-charge" => "AE",
+        "intracommunity" | "intra_community" | "intra-community" | "intracommunitysupply" => "K",
+        "export" | "freeexport" | "free_export" => "G",
         "exempt" | "smallbusiness" | "small_business" | "kleinunternehmer" => "E",
         "zero" => "Z",
         _ if rate.is_zero() => {
             problems.add(format!(
-                "{label}: VAT rate 0 needs vat_rate.code \"Zero\", \"Exempt\" or \"ReverseCharge\""
+                "{label}: VAT rate 0 needs vat_rate.code \"Zero\", \"Exempt\", \"ReverseCharge\", \"IntraCommunity\" or \"Export\""
             ));
             "Z"
         }
@@ -318,7 +322,7 @@ fn tax(item: &Value, buyer_has_vat_id: bool, problems: &mut Problems, label: &st
         "S" if rate.is_zero() => {
             problems.add(format!("{label}: standard VAT needs a rate above 0"))
         }
-        "Z" | "E" | "AE" if !rate.is_zero() => {
+        "Z" | "E" | "AE" | "K" | "G" if !rate.is_zero() => {
             problems.add(format!("{label}: VAT category {category} needs rate 0"))
         }
         "E" if reason.is_none() && reason_code.is_none() => problems.add(format!(
@@ -327,6 +331,9 @@ fn tax(item: &Value, buyer_has_vat_id: bool, problems: &mut Problems, label: &st
         "AE" if !buyer_has_vat_id => {
             problems.add("recipient.vat_id: required for reverse charge (the buyer's VAT ID)")
         }
+        // BR-IC-02.
+        "K" if !buyer_has_vat_id => problems
+            .add("recipient.vat_id: required for an intra-Community supply (the buyer's VAT ID)"),
         _ => {}
     }
     let (exemption_reason, exemption_code) = match category {
@@ -334,6 +341,14 @@ fn tax(item: &Value, buyer_has_vat_id: bool, problems: &mut Problems, label: &st
         "AE" => (
             reason,
             Some(reason_code.unwrap_or_else(|| "VATEX-EU-AE".to_owned())),
+        ),
+        "K" => (
+            reason,
+            Some(reason_code.unwrap_or_else(|| "VATEX-EU-IC".to_owned())),
+        ),
+        "G" => (
+            reason,
+            Some(reason_code.unwrap_or_else(|| "VATEX-EU-G".to_owned())),
         ),
         _ => (None, None),
     };
@@ -607,6 +622,8 @@ impl Invoice {
                                 "zero" | "z" => "Z",
                                 "exempt" | "smallbusiness" | "kleinunternehmer" | "e" => "E",
                                 "reversecharge" | "ae" => "AE",
+                                "intracommunity" | "k" => "K",
+                                "export" | "g" => "G",
                                 _ => "unknown",
                             });
                         Some(computed.tax.rate) == rate
@@ -714,6 +731,22 @@ impl Invoice {
             "metadata.delivery_date",
             &mut problems,
         );
+        let delivery_country = optional(invoice, "metadata.delivery_country_code");
+        if delivery_country
+            .as_deref()
+            .is_some_and(|code| code.len() != 2 || !code.chars().all(|c| c.is_ascii_uppercase()))
+        {
+            problems.add("metadata.delivery_country_code: expected an ISO 3166-1 alpha-2 code such as \"FR\"");
+        }
+        // BR-IC-11 and BR-IC-12.
+        if lines.iter().any(|line| line.tax.category == "K") {
+            if delivery_date.is_none() && billing_period.is_none() {
+                problems.add("metadata.delivery_date: required for an intra-Community supply (or metadata.performance_period)");
+            }
+            if delivery_country.is_none() {
+                problems.add("metadata.delivery_country_code: required for an intra-Community supply (the member state of delivery)");
+            }
+        }
         if lookup(invoice, "totals.discount_total").is_some_and(|value| !value.is_null())
             && money(lookup(invoice, "totals.discount_total"))
                 .is_none_or(|amount| !amount.is_zero())
@@ -746,6 +779,7 @@ impl Invoice {
             payment_means_code,
             buyer_reference: optional(invoice, "metadata.buyer_reference"),
             order_reference: optional(invoice, "metadata.order_reference"),
+            delivery_country,
         })
     }
 }

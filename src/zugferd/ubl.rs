@@ -331,9 +331,21 @@ pub(crate) fn write(format: UblFormat, invoice: &Invoice) -> String {
     }
     party(&mut out, 2, "cac:AccountingSupplierParty", &invoice.seller);
     party(&mut out, 2, "cac:AccountingCustomerParty", &invoice.buyer);
-    if let Some(delivery) = &invoice.delivery_date {
+    if invoice.delivery_date.is_some() || invoice.delivery_country.is_some() {
         open(&mut out, 2, "cac:Delivery");
-        date(&mut out, 4, "cbc:ActualDeliveryDate", delivery);
+        if let Some(delivery) = &invoice.delivery_date {
+            date(&mut out, 4, "cbc:ActualDeliveryDate", delivery);
+        }
+        if let Some(country) = &invoice.delivery_country {
+            // BT-80.
+            open(&mut out, 4, "cac:DeliveryLocation");
+            open(&mut out, 6, "cac:Address");
+            open(&mut out, 8, "cac:Country");
+            el(&mut out, 10, "cbc:IdentificationCode", country);
+            close(&mut out, 8, "cac:Country");
+            close(&mut out, 6, "cac:Address");
+            close(&mut out, 4, "cac:DeliveryLocation");
+        }
         close(&mut out, 2, "cac:Delivery");
     }
     if let Some(code) = payment_means_code(invoice) {
