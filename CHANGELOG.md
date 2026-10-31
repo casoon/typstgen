@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-10-31
+
 ### Added
 
 - **Profiles:** A document profile can offer `xrechnung-3.0` or `peppol-bis-3.0` as its `output_profile`.
