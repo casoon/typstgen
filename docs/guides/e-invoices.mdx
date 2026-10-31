@@ -55,6 +55,8 @@ VAT categories come from `vat_rate.code`:
 | `Zero` | Z | rate 0 |
 | `Exempt` (alias `Kleinunternehmer`) | E | rate 0 and `exemption_reason` (text) or `exemption_reason_code` |
 | `ReverseCharge` | AE | rate 0 and the buyer's `recipient.vat_id` |
+| `IntraCommunity` | K | rate 0, the buyer's `recipient.vat_id`, a delivery date or period and `metadata.delivery_country_code`; XRechnung also wants `delivery_city` and `delivery_postal_code` |
+| `Export` | G | rate 0 |
 
 ## Checks
 
