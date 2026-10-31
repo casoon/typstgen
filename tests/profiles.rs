@@ -267,3 +267,73 @@ fn rendering_uses_the_same_selected_payment_account_as_cii() {
         report["company"]["bank_account"]
     );
 }
+
+#[test]
+fn e_invoice_outputs_report_the_fields_the_writer_requires() {
+    let mut catalog = catalog();
+    catalog["profiles"][0]["outputs"] = json!(["pdf-preview", "xrechnung-3.0", "peppol-bis-3.0"]);
+    let mut complete = request();
+    complete["selection"]["output_profile"] = json!("xrechnung-3.0");
+    let report = validate_document(&catalog, &complete);
+    assert_eq!(
+        report["status"], "ready_for_preview",
+        "{}",
+        report["diagnostics"]
+    );
+    assert_eq!(report["checks"]["transmission"], "not_run");
+
+    let mut input = complete.clone();
+    input["data"]["metadata"]
+        .as_object_mut()
+        .unwrap()
+        .remove("buyer_reference");
+    input["data"]["recipient"]
+        .as_object_mut()
+        .unwrap()
+        .remove("electronic_address");
+    input["company"]
+        .as_object_mut()
+        .unwrap()
+        .remove("electronic_address");
+    input["company"]["contact"]
+        .as_object_mut()
+        .unwrap()
+        .remove("phone");
+    let report = validate_document(&catalog, &input);
+    assert_eq!(report["status"], "blocked");
+    let paths: Vec<_> = report["diagnostics"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|d| d["rule_id"] == "OUTPUT-REQUIRED")
+        .map(|d| d["path"].as_str().unwrap().to_owned())
+        .collect();
+    for expected in [
+        "company.electronic_address",
+        "data.recipient.electronic_address",
+        "data.metadata.buyer_reference",
+        "company.contact.phone",
+    ] {
+        assert!(
+            paths.iter().any(|p| p == expected),
+            "{expected} in {paths:?}"
+        );
+    }
+
+    // Peppol accepts an order reference instead of a buyer reference, but needs one of them.
+    input["company"]["electronic_address"] = complete["company"]["electronic_address"].clone();
+    input["data"]["recipient"]["electronic_address"] =
+        complete["data"]["recipient"]["electronic_address"].clone();
+    input["selection"]["output_profile"] = json!("peppol-bis-3.0");
+    let report = validate_document(&catalog, &input);
+    assert!(report["diagnostics"]
+        .to_string()
+        .contains("one is required by Peppol"));
+    input["data"]["metadata"]["order_reference"] = json!("PO-1");
+    let report = validate_document(&catalog, &input);
+    assert_eq!(
+        report["status"], "ready_for_preview",
+        "{}",
+        report["diagnostics"]
+    );
+}

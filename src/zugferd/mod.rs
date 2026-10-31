@@ -22,6 +22,7 @@ mod ubl;
 
 pub use cii::GUIDELINE;
 pub use pdf::FILE_NAME;
+pub(crate) use ubl::check as check_ubl;
 pub use ubl::{UblFormat, PROFILE_ID};
 
 use crate::{Error, Result};
