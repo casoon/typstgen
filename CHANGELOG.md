@@ -6,6 +6,12 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- **Profiles:** A document profile can offer `xrechnung-3.0` or `peppol-bis-3.0` as its `output_profile`.
+  `validate-document` then reports the fields `typstgen e-invoice` requires, with their JSON paths
+  (`OUTPUT-REQUIRED`), from the same check; the XML itself is still written by `e-invoice`.
+
 ### Changed
 
 - **Website:** the start page has a section on invoices with a real `typstgen e-invoice` run, and

@@ -5,7 +5,7 @@ use std::collections::BTreeSet;
 use chrono::NaiveDate;
 use serde_json::{json, Value};
 
-use crate::zugferd::{decimal::Dec, model::Invoice};
+use crate::zugferd::{check_ubl, decimal::Dec, model::Invoice, UblFormat};
 
 fn array(value: &Value, field: &str) -> Vec<Value> {
     value
@@ -421,6 +421,31 @@ pub(crate) fn validate_document_with_model(
                         ));
                     }
                 }
+            }
+        }
+    }
+    // XRechnung and Peppol files are written by `e-invoice`; selecting one as the output
+    // reports exactly the fields that command requires, from the same check.
+    if let (Ok(invoice), Ok(format)) = (
+        &model,
+        request["selection"]["output_profile"]
+            .as_str()
+            .unwrap_or_default()
+            .parse::<UblFormat>(),
+    ) {
+        if let Err(problems) = check_ubl(format, invoice) {
+            for problem in problems {
+                let path = problem.split([':', ' ']).next().unwrap_or("data");
+                errors.push(diagnostic(
+                    &if path.starts_with("company.") {
+                        path.to_owned()
+                    } else {
+                        format!("data.{path}")
+                    },
+                    "OUTPUT-REQUIRED",
+                    &problem,
+                    &json!([]),
+                ));
             }
         }
     }
