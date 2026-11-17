@@ -1,0 +1,78 @@
+---
+title: Workflow, templates and storage
+description: From data to a verified archive, which tools to use for which document, and how to store data, source and PDF apart.
+order: 2
+---
+
+A document comes from data and a template. What happens next decides whether it can still be
+trusted in eight years.
+
+<Diagram name="tutorial-workflow" />
+
+`check` reports errors with file, line and column, `preview` shows a page as an image, `compile`
+writes the PDF, as PDF/A if needed and for invoices with embedded ZUGFeRD XML. A manifest records
+what each PDF was built from; `verify` rebuilds it later and compares byte for byte. The three
+checking steps are available to an AI agent over MCP as well. Diagram labels are in German.
+
+## Tools and templates
+
+For most documents, typstgen and a template are enough. Reports generated from program code call
+for a library.
+
+- **typstgen** compiles any `.typ` file. It finds templates through `template_paths` in
+  `typstgen.toml` and loads Typst packages such as `@preview/…` from the same folders as the Typst
+  CLI, or not at all, if configured that way.
+- **[business-templates](https://github.com/casoon/typst-business-templates)** provides 19 business
+  documents as a Typst package: invoice, offer, credit note, reminder, delivery note, order
+  confirmation, letter, credentials, concept, contract, documentation, proposal, minutes, SLA,
+  specification, task list, time sheet and handout. Accounting documents take JSON data, the others
+  named parameters and the text as content. The layout is German (DIN 5008).
+- **RenderReport** is a Rust library for data-driven reports built from components (scores,
+  findings, tables, charts), with Typst as the embedded engine; every PDF is PDF/UA-1.
+
+<Callout type="deprecated" title="Successor of docgen">
+  The templates come from `docgen`, which is discontinued. typstgen replaces its PDF generation and
+  compiles the same templates and JSON files; client and project management, automatic numbering
+  and `--encrypt` are not part of it.
+</Callout>
+
+Three documents from business-templates, generated with typstgen 0.4.1 from the example data in
+that repository:
+
+<div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "16px" }}>
+  <figure style={{ margin: 0 }}>
+    <img src="../../../tutorial/template-offer.webp" alt="Offer with letterhead, recipient address, item table and totals" width="827" height="1170" style={{ width: "100%", height: "auto" }} />
+    <figcaption>Offer, example data "it-consultant".</figcaption>
+  </figure>
+  <figure style={{ margin: 0 }}>
+    <img src="../../../tutorial/template-proposal.webp" alt="Title page of a project proposal with project details in a framed box and tags at the bottom" width="827" height="1170" style={{ width: "100%", height: "auto" }} />
+    <figcaption>Project proposal, title page.</figcaption>
+  </figure>
+  <figure style={{ margin: 0 }}>
+    <img src="../../../tutorial/template-protocol.webp" alt="Title page of meeting minutes with date, place, chair, participants and apologies" width="827" height="1170" style={{ width: "100%", height: "auto" }} />
+    <figcaption>Meeting minutes, title page.</figcaption>
+  </figure>
+</div>
+
+## Data, source, PDF: stored apart
+
+The data changes. The template stays. The PDF is just the result.
+
+A folder per document type and year works well, with the document number as file name:
+`invoices/2026/RE-2026-001.json` holds the data, `RE-2026-001.typ` next to it is a thin wrapper that
+brings template and data together. Master data such as `company.json` lives once, centrally.
+
+Data, wrapper and manifest are small text files and belong in version control; the history shows
+who changed what and when. PDFs belong in the archive storage, not in Git. The manifest ties both
+together.
+
+If you keep a knowledge base for AI systems, store a compact summary of each case there and point
+to the source with `document_id` and `typst_source`. The system reads the entry, the customer gets
+the PDF; PDFs stay out of the search index.
+
+<Callout type="tip" title="Number ranges">
+  A fixed scheme such as `RE-YYYY-NNN` (invoice) or `AN-YYYY-NNN` (offer) makes files, data and
+  knowledge entries findable without a database.
+</Callout>
+
+Next: [A seminar paper with references](../thesis/).

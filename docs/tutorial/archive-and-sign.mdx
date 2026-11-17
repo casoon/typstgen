@@ -1,0 +1,149 @@
+---
+title: Archive, verify and sign
+description: Record a build in a manifest, verify it later, sign and timestamp an invoice, and check the archive in CI.
+order: 5
+---
+
+PDF/A keeps a file readable. That it is unchanged has to be shown separately.
+
+`typstgen compile --manifest archive.json` records for each PDF which source, which options and
+which files it was built from, with SHA-256 of the PDF, templates, data, images, package files and
+fonts. `typstgen verify` later checks three things: the stored PDF is unchanged, a rebuild reads
+the same files, and it produces the same bytes. That needs a fixed timestamp and pinned fonts and
+packages for every document.
+
+<Callout type="caution" title="Legal context in Germany, as of 11 October 2026">
+  Invoices and bookkeeping vouchers are kept for eight years since 2025 (§ 147 AO, § 14b UStG).
+  The GoBD prescribe neither an archive system nor checksums; they name versioning and logging as
+  examples of measures for unalterability. For outgoing invoices, GoBD Rz. 76 requires no image copy
+  if a content-identical copy can be produced at any time. PDF/A is not required. Not legal advice.
+</Callout>
+
+<Diagram name="tutorial-retention" />
+
+Diagram labels are in German: books and annual accounts 10, invoices and vouchers 8, business
+letters 6 years.
+
+## Record a build and verify it
+
+Create a PDF with a manifest, verify it, change the source and see what `verify` reports.
+
+```text
+$ typstgen compile brief.typ --pdf-standard a-2b \
+    --creation-timestamp 1790000000 --manifest archive.json
+brief.pdf
+$ typstgen verify
+ok      brief.pdf
+1 of 1 documents verified
+```
+
+A price in `brief.typ` changes without recording again. `verify` names the file and exits with
+code 1:
+
+```text
+$ typstgen verify
+FAILED  brief.pdf
+        changed: brief.typ
+        the rebuild differs from the recorded PDF
+0 of 1 documents verified
+```
+
+Any change to source, data, template, package or font shows up, and so does a changed PDF. Once the
+change is undone, `verify` reports "1 of 1 documents verified" again. Details:
+[Archiving](../../guides/archiving/).
+
+## Sign, and timestamp the archive
+
+Sign a ZUGFeRD invoice with pyHanko, check that it stays PDF/A and a valid e-invoice, and timestamp
+the manifest.
+
+<Callout type="note" title="Do I need this?">
+  Not for invoices: German VAT law (§ 14 UStG) names a qualified signature only as one option, an
+  internal control procedure is enough. The GoBD require neither a signature nor a timestamp. Legal
+  weight comes only with a qualified signature, for example for the written form (§ 126a BGB),
+  which only a qualified trust service provider can issue. As of 12 October 2026, not legal advice.
+</Callout>
+
+**Sign.** typstgen does not sign. pyHanko (0.35.2 or later) appends a PAdES signature with a
+timestamp as a new revision; the bytes typstgen wrote stay unchanged.
+
+```text
+$ pyhanko sign addsig --field Signature1 --use-pades \
+    --timestamp-url http://timestamp.digicert.com \
+    pemder --key key.pem --cert cert.pem rechnung.pdf rechnung-signiert.pdf
+```
+
+**Check.** The signature is valid and timestamped, the PDF stays PDF/A-3b, and Mustang still
+reports a valid invoice. Run on 12 October 2026 with pyHanko 0.37.0 and the DigiCert TSA; output
+shortened to the relevant lines.
+
+```text
+$ pyhanko sign validate --pretty-print --trust cert.pem rechnung-signiert.pdf
+…
+Signature timestamp token: 2026-10-12T11:42:09+00:00
+This timestamp is backed by a time stamping authority.
+The signature covers the entire file.
+The signature is judged VALID.
+$ verapdf --flavour 3b rechnung-signiert.pdf
+PASS rechnung-signiert.pdf 3b
+```
+
+**Check the archive.** `verify` finds the recorded build at the start of the signed file and notes
+the signature. Revisions appended without a signature count as a change.
+
+```text
+$ typstgen verify
+ok      rechnung.pdf
+        note: signed after recording: the recorded PDF is unchanged, 1 revision(s) with a signature appended; check the signature with a PDF signature validator
+1 of 1 documents verified
+```
+
+**Timestamp the manifest.** An RFC 3161 timestamp over `archive.json` proves that every checksum
+in it existed at that time, without changing any PDF. The `.tsr` file goes into Git with the
+manifest.
+
+```text
+$ openssl ts -query -data archive.json -sha256 -cert -out archive.tsq
+$ curl -s -H "Content-Type: application/timestamp-query" \
+    --data-binary @archive.tsq http://timestamp.digicert.com -o archive.json.tsr
+$ openssl ts -verify -data archive.json -in archive.json.tsr \
+    -CAfile "$(brew --prefix)/etc/ca-certificates/cert.pem"
+Verification: OK
+```
+
+The invoice is signed, stays reproducible and still passes `verify`; the manifest has a verifiable
+point in time. The free timestamp services are not qualified under eIDAS. See also
+[Signing](../../guides/signing/).
+
+## Check before every push
+
+Locally the check is binding; in CI it is the proof at release time. `typstgen verify` runs before
+every push, as a script or a pre-push hook. CI has no PDFs, since they live in the archive; there,
+`verify --rebuild-only` checks only that every source yields the recorded bytes.
+
+For a rebuild on another machine to match, fonts and packages belong in the repository:
+`use_system_fonts = false`, `font_paths = ["fonts"]`, `package_path` with
+`download_packages = false`. A template that asks for a system font such as Helvetica looks
+different on Linux otherwise.
+
+For private repositories, run it only on release tags and on demand, with a timeout, which saves
+Actions minutes:
+
+```yaml
+# .github/workflows/verify.yml
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - run: cargo install typstgen --version 0.5.0 --locked
+      - run: typstgen verify archive.json --rebuild-only
+```
+
+More: [CI](../../guides/ci/). Next: [An agent that finds its own mistakes](../ai-agent/).

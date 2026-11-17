@@ -41,6 +41,8 @@ Around the compiler, typstgen covers what business documents need:
 
 - **Getting started**: [install](getting-started/installation/) the CLI or the crate and compile a
   [first document](getting-started/quickstart/).
+- **Tutorial**, one thread from the first letter to an archived e-invoice, with real commands and
+  output: [Why Typst, and a first letter](tutorial/first-document/).
 - **Guides**, for compiling: [templates and imports](guides/templates/), [fonts](guides/fonts/),
   [inputs and PDF options](guides/inputs-and-pdf/),
   [packages and bibliographies](guides/packages-and-bibliography/) and

@@ -1,0 +1,71 @@
+---
+title: An agent that finds its own mistakes
+description: Connect typstgen to an AI agent over MCP so it checks, previews and compiles its own Typst, plus answers to frequent questions.
+order: 6
+---
+
+An AI agent writes Typst quickly, and makes mistakes. Over MCP it can find and fix them itself.
+
+`typstgen mcp` is a Model Context Protocol server on stdin/stdout with four tools: `check` (errors
+with line and column, writes nothing), `preview` (a page as an image), `compile` (PDF, optionally
+PDF/A or ZUGFeRD) and `list_templates`. All paths are confined to the workspace.
+
+A division of labour works well: the agent writes data (JSON) and text, the template takes care of
+the layout, and a person reviews the result before it goes out. For e-invoices the data comes from
+bookkeeping, not from the language model.
+
+<Callout type="caution" title="Do not let it invent numbers">
+  Amounts, customer data and legal texts belong in checked data sources. The ZUGFeRD checks catch
+  arithmetic errors, not wrong content.
+</Callout>
+
+## An MCP session: check, fix, compile
+
+Connect typstgen to Claude Code and follow an agent repairing a broken offer. For the current
+project; other MCP clients start the same command.
+
+```text
+$ claude mcp add typstgen -- typstgen mcp --root .
+```
+
+The agent calls `check` and gets the error as the tool result:
+
+```text
+check  angebot.typ
+→ typst compilation failed:
+  angebot.typ:14:9: error: function `table` does not contain field `heder`
+```
+
+After fixing line 14: check again, look at page 1, compile as PDF/A-2b.
+
+```text
+check    angebot.typ   → ok, 1 page
+preview  angebot.typ   → image/png (Seite 1)
+compile  angebot.typ, pdf_standards ["a-2b"]
+         → wrote angebot.pdf (21090 bytes), 1 page
+```
+
+The session ran over the real protocol (JSON-RPC over stdio); the output above is the tool
+results, trimmed to the essentials. More: [AI agents](../../guides/ai-agents/).
+
+## Frequent questions
+
+**Does Typst have to be installed?** No. typstgen includes Typst as a library and compiles
+locally, with no account and no cloud. On top comes what a plain Typst installation cannot do:
+ZUGFeRD e-invoices, an archive manifest with verify and an MCP server for AI agents.
+
+**Is PDF/A required?** Not by German law (as of 11 October 2026). PDF/A is the container of
+ZUGFeRD and common for long-term archiving.
+
+**Can I move my LaTeX paper over?** BibTeX files carry over directly. The text is moved by hand or
+with converters; formulas are shorter in Typst but written differently.
+
+**Why do PDFs not belong in Git?** They are results. Data, sources and the manifest belong in Git;
+the PDF can be rebuilt from them at any time, and verify shows it is the same.
+
+**Do I have to sign invoices?** Not in Germany (as of 12 October 2026). § 14 UStG accepts an
+internal control procedure; a qualified signature is only one option. If you sign, the signature
+has to be kept as well. See [Archive, verify and sign](../archive-and-sign/).
+
+**What happens with a Typst update?** A new Typst version may typeset differently. `verify` then
+names both versions; archived PDFs stay valid, and a rebuild should use the recorded version.

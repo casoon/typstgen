@@ -1,0 +1,65 @@
+---
+title: A seminar paper with references
+description: Title page, outlines, formulas, citations and appendix from one package, built offline and reproducibly as PDF/A-2b.
+order: 3
+---
+
+Title page, outlines, formulas, citations and appendix come from a package. The paper itself is
+just text.
+
+The `@local/thesis` template lives in typstgen's examples. It sets title page, abstract, table of
+contents, lists of figures and tables, roman and arabic page numbers, numbered equations,
+bibliography, appendix and declaration of authorship, in German or English.
+
+Citations use `@key` from a BibTeX or Hayagriva file; Typst ships the styles, such as APA, IEEE,
+Chicago or ISO 690. Figures such as flow diagrams come in as SVG, for example from Chartlet.
+
+<Callout type="caution" title="Declaration of authorship">
+  The bundled text is a suggestion. Universities usually prescribe their own wording; the
+  `declaration` parameter takes it.
+</Callout>
+
+<img src="../../../tutorial/thesis-content.webp" alt="Page of a seminar paper with numbered chapters, a formula, APA citations and a table" width="827" height="1170" style={{ maxWidth: "420px", width: "100%", height: "auto" }} />
+
+`examples/thesis.pdf`, page 4, PDF/A-2b.
+
+## Build it offline and reproducibly
+
+Compile the paper as PDF/A-2b without fetching anything from the network.
+
+**1. Configuration.** The template is a package inside the project; downloads and system fonts are
+off.
+
+```toml
+# typstgen.toml
+template_paths = ["templates"]
+package_path = "packages"      # enthält local/thesis/0.1.0
+download_packages = false      # nichts nachladen
+use_system_fonts = false
+```
+
+**2. Compile.** Fix the standard and the timestamp: two runs give byte-identical files.
+
+```text
+$ typstgen compile thesis.typ --config typstgen.toml \
+    --pdf-standard a-2b --creation-timestamp 1759276800
+thesis.pdf
+```
+
+**3. When a package is missing.** With `download_packages = false` the build stops instead of
+fetching:
+
+```text
+error: typst compilation failed:
+paper.typ:1:9: error: package not found (searched for @preview/oxifmt:0.2.1)
+```
+
+The result is seven pages with outlines, a Chartlet figure, a formula, a table and five real
+sources in APA style; veraPDF reports PDF/A-2b compliant.
+
+<img src="../../../tutorial/thesis-figure.webp" alt="Page of the seminar paper with a flow diagram in three columns, a table and a code block below" width="827" height="1170" style={{ maxWidth: "420px", width: "100%", height: "auto" }} />
+
+Figure 1, made with Chartlet, page 5. More on packages and fonts:
+[Packages and bibliography](../../guides/packages-and-bibliography/), [Fonts](../../guides/fonts/).
+
+Next: [Invoices with ZUGFeRD](../e-invoice/).

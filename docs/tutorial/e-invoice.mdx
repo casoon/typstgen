@@ -1,0 +1,77 @@
+---
+title: Invoices with ZUGFeRD
+description: Turn invoice JSON into a PDF/A-3 with embedded XML, check it with the Mustang validator and see what happens when the data is wrong.
+order: 4
+---
+
+Since 2025, businesses in Germany must be able to receive e-invoices; they must issue them from
+2028 at the latest.
+
+<Diagram name="tutorial-e-invoice-timeline" />
+
+Diagram labels are in German.
+
+A ZUGFeRD invoice is a PDF/A-3 that carries the same data a second time as XML (UN/CEFACT CII,
+profile EN 16931). For VAT, the XML is the leading part.
+
+typstgen builds the XML from the same JSON data the invoice template renders. It recomputes lines,
+VAT per category and totals first; if the JSON states different numbers, the build fails, since
+otherwise the PDF would show something else than the XML. Covered: standard and reduced rate, 0 %,
+exempt with a reason, and reverse charge.
+
+<Callout type="caution" title="Not legal advice">
+  Dates as of 11 October 2026: § 27 (38) UStG, BMF letters of 15 October 2024 and 15 October 2025.
+  Check the current rules or ask your tax advisor.
+</Callout>
+
+## Create and check an invoice
+
+**1. Document.** Two lines: load the template, pass the data. The package lives in the
+typst-business-templates repository under `packages/local/business-templates/0.1.0`;
+`package_path` in `typstgen.toml` points to it.
+
+```typst
+#import "@local/business-templates:0.1.0": invoice
+#invoice(data: json("/rechnung.json"), company: json("/company.json"))
+```
+
+**2. Compile.** `--zugferd` and `--company` build the XML from the same data and embed it as
+`factur-x.xml`.
+
+```text
+$ typstgen compile rechnung.typ --pdf-standard a-3b \
+    --creation-timestamp 1737500000 \
+    --zugferd rechnung.json --company company.json
+rechnung.pdf
+```
+
+**3. Check.** Mustang checks the PDF/A-3 and the XML against EN 16931.
+
+```text
+$ java -jar Mustang-CLI-2.26.0.jar --action validate --source rechnung.pdf
+… Parsed PDF:valid XML:valid … Profile:urn:cen.eu:en16931:2017 Version:2 … Errors:[]
+```
+
+**4. When the data is wrong.** Every problem at once, each with the field that fixes it:
+
+```text
+error: ZUGFeRD invoice:
+recipient.address.country: unknown country, set recipient.address.country_code (ISO 3166-1, e.g. "DE")
+items[0]: unit "Kisten" has no UN/ECE code, set items[0].unit_code (e.g. "C62")
+items[1]: total 1.00 does not match quantity × unit price = 11200.00
+```
+
+The result is a valid ZUGFeRD PDF in the EN 16931 profile; veraPDF reports PDF/A-3b compliant.
+Mixed VAT rates, reverse charge and an exempt invoice were checked as well.
+
+<img src="../../../tutorial/invoice-zugferd.webp" alt="First page of an invoice with sender, recipient, item table and totals; a logo placeholder at the top right" width="827" height="1170" style={{ maxWidth: "420px", width: "100%", height: "auto" }} />
+
+Invoice from the "it-consultant" example; the example company has no logo.
+
+<Callout type="caution" title="Check before you send">
+  Check invoices with a validator such as Mustang before they go out. The reference for all of
+  this is [E-invoices](../../guides/e-invoices/); XRechnung for public-sector buyers is covered
+  there as well.
+</Callout>
+
+Next: [Archive, verify and sign](../archive-and-sign/).

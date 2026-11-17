@@ -22,6 +22,7 @@ export default defineConfig({
       ],
       docsGroups: {
         'getting-started': 'Getting started',
+        tutorial: 'Tutorial',
         guides: 'Guides',
         reference: 'Reference',
       },

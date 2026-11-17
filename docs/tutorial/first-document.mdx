@@ -1,0 +1,79 @@
+---
+title: Why Typst, and a first letter
+description: Write a letter in twenty lines of Typst, compile it with typstgen and see how an error is reported.
+order: 1
+---
+
+Typst is a typesetting system: you write text with a little markup into a file, and Typst turns it
+into a PDF. This tutorial follows one thread from the first letter to an archived e-invoice, with
+real commands and real output. Every command and output on these pages was run with typstgen 0.4
+(signing: 0.5) and Typst 0.15.1 in October 2026. Examples and diagram labels are in German, since
+the templates follow DIN 5008.
+
+## Why Typst
+
+Compared with a word processor, everything lives in a readable text file that can be versioned,
+compared and compiled automatically: the same source gives the same PDF. Compared with LaTeX, the
+syntax is shorter, errors name file, line and column, and templates are functions in a real
+programming language.
+
+Headings start with `=`, bold text sits between asterisks (`*bold*`), functions start with `#`:
+`#table(…)`, `#image(…)`, `#bibliography(…)`. Formulas sit between dollar signs. Data comes into the
+document with `json(…)`, `csv(…)` or `yaml(…)`.
+
+typstgen compiles `.typ` files with an embedded Typst engine, as a command line, a Rust library,
+WebAssembly and an MCP server. No `typst` installation is needed.
+
+<Callout type="tip" title="Install">
+  `cargo install typstgen` needs Rust 1.92 or later. From then on everything runs locally, with no
+  account and no online editor.
+</Callout>
+
+## A letter in twenty lines
+
+**1. Source.** Set page format and font, then plain text, a heading and a table.
+
+```typst
+#set page(paper: "a4", margin: 2.5cm)
+#set text(lang: "de", font: "Libertinus Serif", size: 11pt)
+
+#align(right)[Musterstadt, #datetime.today().display("[day].[month].[year]")]
+
+= Angebot für die Dokumentenstrecke
+
+Sehr geehrte Frau Beispiel,
+
+vielen Dank für Ihre Anfrage. Wir schlagen vor:
+
+#table(
+  columns: (1fr, auto),
+  table.header([*Leistung*], [*Preis*]),
+  [Vorlagen für Brief und Rechnung], [1.200 €],
+  [PDF-Erzeugung in der CI], [600 €],
+)
+```
+
+**2. Compile.** typstgen writes the PDF next to the source and prints its path.
+
+```text
+$ typstgen compile brief.typ
+brief.pdf
+```
+
+**3. A typo.** `table.header` becomes `table.heder`. typstgen stops, names file, line and column
+and exits with code 1, which scripts, CI and AI agents rely on later.
+
+```text
+$ typstgen compile brief-fehler.typ
+error: typst compilation failed:
+brief-fehler.typ:14:9: error: function `table` does not contain field `heder`
+```
+
+The result is a PDF with date, heading and table:
+
+<img src="../../../tutorial/first-letter.webp" alt="First page of the letter: place and date at the top right, a heading, salutation and a table with two services and prices" width="827" height="1170" style={{ maxWidth: "420px", width: "100%", height: "auto" }} />
+
+The date comes from `datetime.today()`. [Archiving](../../guides/archiving/) shows how to fix it
+for reproducible files.
+
+Next: [Workflow, templates and storage](../templates-and-storage/).
