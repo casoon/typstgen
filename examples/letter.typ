@@ -25,6 +25,7 @@ pipeline in two steps: first the templates, then the automated PDF build.
   table.header([*Item*], [*Price*]),
   [Letter and invoice templates], [€ 1,200],
   [PDF build in CI], [€ 600],
+  table.hline(stroke: 1pt + luma(40)),
   [*Total*], [*€ 1,800*],
 )
 
