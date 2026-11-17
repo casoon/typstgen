@@ -1,57 +1,57 @@
 {
   "schemaVersion": 1,
   "type": "flow",
-  "title": "Ablauf mit typstgen",
-  "description": "Daten und Vorlage ergeben den Quelltext; check und preview zeigen Fehler und Layout, compile erzeugt das PDF/A (bei Rechnungen mit ZUGFeRD-XML) und protokolliert es im Manifest; verify belegt später, dass nichts verändert wurde.",
-  "source": "typstgen 0.4 (Stand 11.10.2026)",
-  "locale": "de",
+  "title": "Workflow with typstgen",
+  "description": "Data and template make the source; check and preview show errors and layout, compile writes the PDF/A (with ZUGFeRD XML for invoices) and records it in the manifest; verify proves later that nothing has changed.",
+  "source": "typstgen 0.4 (as of 11 October 2026)",
+  "locale": "en",
   "width": 960,
   "height": 920,
   "flow": {
     "lanes": [
       {
         "id": "write",
-        "label": "Erstellen"
+        "label": "Create"
       },
       {
         "id": "check",
-        "label": "Prüfen"
+        "label": "Check"
       },
       {
         "id": "keep",
-        "label": "Ablegen"
+        "label": "Keep"
       }
     ],
     "nodes": [
       {
         "id": "data",
-        "label": "Daten",
+        "label": "Data",
         "sublabel": "JSON, BibTeX",
         "kind": "start",
         "lane": "write"
       },
       {
         "id": "doc",
-        "label": "Dokument",
-        "sublabel": ".typ + Vorlage",
+        "label": "Document",
+        "sublabel": ".typ + template",
         "lane": "write"
       },
       {
         "id": "check",
         "label": "check",
-        "sublabel": "Fehler mit Zeile",
+        "sublabel": "Errors with line",
         "lane": "check"
       },
       {
         "id": "ok",
-        "label": "Fehlerfrei?",
+        "label": "No errors?",
         "kind": "decision",
         "lane": "check"
       },
       {
         "id": "preview",
         "label": "preview",
-        "sublabel": "Seite als Bild",
+        "sublabel": "Page as image",
         "lane": "check"
       },
       {
@@ -69,7 +69,7 @@
       {
         "id": "verify",
         "label": "verify",
-        "sublabel": "Neubau identisch",
+        "sublabel": "Rebuild identical",
         "kind": "end",
         "lane": "keep"
       }
@@ -90,13 +90,13 @@
       {
         "from": "ok",
         "to": "doc",
-        "label": "nein",
+        "label": "no",
         "dash": "dashed"
       },
       {
         "from": "ok",
         "to": "preview",
-        "label": "ja"
+        "label": "yes"
       },
       {
         "from": "preview",
@@ -109,12 +109,12 @@
       {
         "from": "manifest",
         "to": "verify",
-        "label": "später, in CI"
+        "label": "later, in CI"
       }
     ],
     "groups": [
       {
-        "label": "auch per MCP (KI-Agent)",
+        "label": "also via MCP (AI agent)",
         "nodes": ["check", "ok", "preview"]
       }
     ],

@@ -1,0 +1,123 @@
+{
+  "schemaVersion": 1,
+  "type": "flow",
+  "title": "Ablauf mit typstgen",
+  "description": "Daten und Vorlage ergeben den Quelltext; check und preview zeigen Fehler und Layout, compile erzeugt das PDF/A (bei Rechnungen mit ZUGFeRD-XML) und protokolliert es im Manifest; verify belegt später, dass nichts verändert wurde.",
+  "source": "typstgen 0.4 (Stand 11.10.2026)",
+  "locale": "de",
+  "width": 960,
+  "height": 920,
+  "flow": {
+    "lanes": [
+      {
+        "id": "write",
+        "label": "Erstellen"
+      },
+      {
+        "id": "check",
+        "label": "Prüfen"
+      },
+      {
+        "id": "keep",
+        "label": "Ablegen"
+      }
+    ],
+    "nodes": [
+      {
+        "id": "data",
+        "label": "Daten",
+        "sublabel": "JSON, BibTeX",
+        "kind": "start",
+        "lane": "write"
+      },
+      {
+        "id": "doc",
+        "label": "Dokument",
+        "sublabel": ".typ + Vorlage",
+        "lane": "write"
+      },
+      {
+        "id": "check",
+        "label": "check",
+        "sublabel": "Fehler mit Zeile",
+        "lane": "check"
+      },
+      {
+        "id": "ok",
+        "label": "Fehlerfrei?",
+        "kind": "decision",
+        "lane": "check"
+      },
+      {
+        "id": "preview",
+        "label": "preview",
+        "sublabel": "Seite als Bild",
+        "lane": "check"
+      },
+      {
+        "id": "compile",
+        "label": "compile",
+        "sublabel": "PDF/A, ZUGFeRD",
+        "lane": "keep"
+      },
+      {
+        "id": "manifest",
+        "label": "Manifest",
+        "sublabel": "SHA-256",
+        "lane": "keep"
+      },
+      {
+        "id": "verify",
+        "label": "verify",
+        "sublabel": "Neubau identisch",
+        "kind": "end",
+        "lane": "keep"
+      }
+    ],
+    "edges": [
+      {
+        "from": "data",
+        "to": "doc"
+      },
+      {
+        "from": "doc",
+        "to": "check"
+      },
+      {
+        "from": "check",
+        "to": "ok"
+      },
+      {
+        "from": "ok",
+        "to": "doc",
+        "label": "nein",
+        "dash": "dashed"
+      },
+      {
+        "from": "ok",
+        "to": "preview",
+        "label": "ja"
+      },
+      {
+        "from": "preview",
+        "to": "compile"
+      },
+      {
+        "from": "compile",
+        "to": "manifest"
+      },
+      {
+        "from": "manifest",
+        "to": "verify",
+        "label": "später, in CI"
+      }
+    ],
+    "groups": [
+      {
+        "label": "auch per MCP (KI-Agent)",
+        "nodes": ["check", "ok", "preview"]
+      }
+    ],
+    "mainPath": ["data", "doc", "check", "ok", "preview", "compile", "manifest", "verify"]
+  }
+}

@@ -1,0 +1,81 @@
+---
+title: Ein Agent, der seine Fehler selbst findet
+description: typstgen über MCP an einen KI-Agenten anbinden, damit er sein Typst selbst prüft, ansieht und übersetzt, dazu häufige Fragen.
+order: 6
+---
+
+**English version:** [Tutorial in English](../../tutorial/ai-agent/)
+
+<div lang="de">
+
+Ein KI-Agent schreibt Typst schnell und macht Fehler. Über MCP kann er sie selbst finden und
+beheben.
+
+`typstgen mcp` ist ein Model-Context-Protocol-Server auf stdin/stdout. Er stellt vier Werkzeuge
+bereit: `check` (Fehler mit Zeile und Spalte, schreibt nichts), `preview` (eine Seite als Bild),
+`compile` (PDF, auf Wunsch als PDF/A oder ZUGFeRD) und `list_templates`. Alle Pfade sind auf das
+Arbeitsverzeichnis beschränkt.
+
+Bewährt hat sich eine Arbeitsteilung: Der Agent schreibt Daten (JSON) und Text, die Vorlage sorgt
+für das Layout, ein Mensch prüft das Ergebnis vor dem Versand. Für E-Rechnungen kommen die Daten
+aus der Buchhaltung, nicht aus dem Sprachmodell.
+
+<Callout type="caution" title="Zahlen nicht erfinden lassen">
+  Beträge, Kundendaten und Rechtstexte gehören in geprüfte Datenquellen. Die ZUGFeRD-Prüfung fängt
+  Rechenfehler ab, nicht falsche Inhalte.
+</Callout>
+
+## Eine MCP-Sitzung: prüfen, korrigieren, übersetzen
+
+typstgen in Claude Code einbinden und verfolgen, wie ein Agent ein fehlerhaftes Angebot repariert.
+Der Befehl gilt für das aktuelle Projekt; andere MCP-Clients starten denselben Befehl.
+
+```text
+$ claude mcp add typstgen -- typstgen mcp --root .
+```
+
+Der Agent ruft `check` auf und bekommt die Fehlermeldung als Werkzeugergebnis:
+
+```text
+check  angebot.typ
+→ typst compilation failed:
+  angebot.typ:14:9: error: function `table` does not contain field `heder`
+```
+
+Nach der Korrektur in Zeile 14: erneut prüfen, Seite 1 ansehen, als PDF/A-2b übersetzen.
+
+```text
+check    angebot.typ   → ok, 1 page
+preview  angebot.typ   → image/png (Seite 1)
+compile  angebot.typ, pdf_standards ["a-2b"]
+         → wrote angebot.pdf (21090 bytes), 1 page
+```
+
+Die Sitzung lief über das echte Protokoll (JSON-RPC über stdio); die Ausgaben oben sind die
+Werkzeugergebnisse, gekürzt auf das Wesentliche. Mehr (englisch): [AI agents](../../guides/ai-agents/).
+
+## Häufige Fragen
+
+**Muss Typst installiert sein?** Nein. typstgen bringt Typst als Bibliothek mit und übersetzt
+lokal, ohne Konto und ohne Cloud. Dazu kommt, was eine reine Typst-Installation nicht kann:
+E-Rechnung nach ZUGFeRD, ein Archiv-Manifest mit verify und ein MCP-Server für KI-Agenten.
+
+**Ist PDF/A Pflicht?** Gesetzlich nicht (Stand 11.10.2026). PDF/A ist der Container von ZUGFeRD
+und für die Langzeitarchivierung üblich.
+
+**Kann ich meine LaTeX-Arbeit übernehmen?** BibTeX-Dateien lassen sich direkt weiterverwenden.
+Den Text überträgt man von Hand oder mit Konvertern; Formeln sind in Typst kürzer, aber anders
+geschrieben.
+
+**Warum gehören PDFs nicht ins Git?** Sie sind Ergebnisse. Ins Git gehören Daten, Quellen und das
+Manifest; aus ihnen entsteht das PDF jederzeit neu, und `verify` belegt, dass es dasselbe ist.
+
+**Muss ich Rechnungen signieren?** Nein (Stand 12.10.2026). § 14 UStG lässt ein innerbetriebliches
+Kontrollverfahren genügen, die qualifizierte Signatur ist nur eine Möglichkeit. Wer signiert, muss
+die Signatur mit aufbewahren. Siehe [Archivieren, prüfen und signieren](../archive-and-sign/).
+
+**Was passiert mit einem Typst-Update?** Eine neue Typst-Version kann anders setzen. `verify`
+nennt dann beide Versionen; archivierte PDFs bleiben gültig, ein Neubau sollte mit der
+protokollierten Version laufen.
+
+</div>

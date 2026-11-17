@@ -1,0 +1,81 @@
+---
+title: Rechnungen mit ZUGFeRD
+description: Rechnungs-JSON in ein PDF/A-3 mit eingebettetem XML verwandeln, mit dem Mustang-Validator prüfen und sehen, was bei falschen Daten passiert.
+order: 4
+---
+
+**English version:** [Tutorial in English](../../tutorial/e-invoice/)
+
+<div lang="de">
+
+Seit 2025 müssen Unternehmen E-Rechnungen empfangen können; ausstellen müssen sie sie spätestens
+ab 2028.
+
+<Diagram name="tutorial-e-invoice-timeline-de" />
+
+Eine ZUGFeRD-Rechnung ist ein PDF/A-3, das dieselben Angaben zusätzlich als XML trägt (UN/CEFACT
+CII, Profil EN 16931). Umsatzsteuerlich ist das XML der führende Teil.
+
+typstgen erzeugt das XML aus denselben JSON-Daten, aus denen die Rechnungsvorlage das PDF setzt.
+Vorher rechnet es Positionen, Steuer je Kategorie und Summen nach; weichen die Zahlen im JSON ab,
+bricht der Build ab, sonst zeigte das PDF etwas anderes als das XML. Abgedeckt sind Normal- und
+ermäßigter Satz, 0 %, steuerbefreit mit Begründung und Reverse Charge.
+
+<Callout type="caution" title="Keine Rechtsberatung">
+  Fristen nach Stand 11.10.2026: § 27 Abs. 38 UStG, BMF-Schreiben vom 15.10.2024 und 15.10.2025.
+  Prüfen Sie den aktuellen Stand oder fragen Sie Ihre Steuerberatung.
+</Callout>
+
+## Eine Rechnung als ZUGFeRD erzeugen und prüfen
+
+**1. Dokument.** Zwei Zeilen: Vorlage laden, Daten übergeben. Das Paket liegt im Repository
+typst-business-templates unter `packages/local/business-templates/0.1.0`, `package_path` in
+`typstgen.toml` zeigt darauf.
+
+```typst
+#import "@local/business-templates:0.1.0": invoice
+#invoice(data: json("/rechnung.json"), company: json("/company.json"))
+```
+
+**2. Übersetzen.** `--zugferd` und `--company` erzeugen das XML aus denselben Daten und betten es
+als `factur-x.xml` ein.
+
+```text
+$ typstgen compile rechnung.typ --pdf-standard a-3b \
+    --creation-timestamp 1737500000 \
+    --zugferd rechnung.json --company company.json
+rechnung.pdf
+```
+
+**3. Prüfen.** Mustang prüft das PDF/A-3 und das XML gegen EN 16931.
+
+```text
+$ java -jar Mustang-CLI-2.26.0.jar --action validate --source rechnung.pdf
+… Parsed PDF:valid XML:valid … Profile:urn:cen.eu:en16931:2017 Version:2 … Errors:[]
+```
+
+**4. Wenn die Daten nicht stimmen.** Alle Probleme auf einmal, jeweils mit dem Feld, das sie
+behebt:
+
+```text
+error: ZUGFeRD invoice:
+recipient.address.country: unknown country, set recipient.address.country_code (ISO 3166-1, e.g. "DE")
+items[0]: unit "Kisten" has no UN/ECE code, set items[0].unit_code (e.g. "C62")
+items[1]: total 1.00 does not match quantity × unit price = 11200.00
+```
+
+Das Ergebnis ist ein gültiges ZUGFeRD-PDF im Profil EN 16931; veraPDF meldet PDF/A-3b-konform.
+Geprüft wurden außerdem gemischte Steuersätze, Reverse Charge und eine steuerbefreite Rechnung.
+
+<img src="../../../tutorial/invoice-zugferd.webp" alt="Erste Seite einer Rechnung mit Absender, Empfänger, Positionstabelle und Summen; oben rechts ein Platzhalter für das Logo" width="827" height="1170" style={{ maxWidth: "420px", width: "100%", height: "auto" }} />
+
+Rechnung aus dem Beispiel „it-consultant“; die Beispielfirma hat kein Logo.
+
+<Callout type="caution" title="Vor dem Versand prüfen">
+  Prüfen Sie Rechnungen vor dem Versand mit einem Validator wie Mustang. Nachschlagen (englisch):
+  [E-invoices](../../guides/e-invoices/); dort steht auch XRechnung für öffentliche Auftraggeber.
+</Callout>
+
+Weiter: [Archivieren, prüfen und signieren](../archive-and-sign/).
+
+</div>

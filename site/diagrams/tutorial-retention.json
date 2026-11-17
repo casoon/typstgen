@@ -2,17 +2,17 @@
   "schemaVersion": 1,
   "type": "bar",
   "orientation": "horizontal",
-  "title": "Aufbewahrungsfristen seit 1. Januar 2025",
-  "description": "Bücher und Jahresabschlüsse zehn Jahre, Rechnungen und andere Buchungsbelege acht Jahre, Handels- und Geschäftsbriefe sechs Jahre.",
-  "source": "§ 147 Abs. 3 AO, § 257 Abs. 4 HGB, § 14b UStG (Stand 11.10.2026)",
-  "locale": "de",
+  "title": "Retention periods since 1 January 2025",
+  "description": "Books and annual accounts ten years, invoices and other bookkeeping vouchers eight years, business letters six years.",
+  "source": "§ 147 Abs. 3 AO, § 257 Abs. 4 HGB, § 14b UStG (as of 11 October 2026)",
+  "locale": "en",
   "width": 960,
   "height": 300,
   "showValues": true,
-  "valueAxis": { "title": "Jahre", "format": "number" },
+  "valueAxis": { "title": "Years", "format": "number" },
   "data": [
-    { "label": "Bücher, Jahresabschlüsse", "value": 10 },
-    { "label": "Rechnungen, Buchungsbelege", "value": 8 },
-    { "label": "Handels- und Geschäftsbriefe", "value": 6 }
+    { "label": "Books, annual accounts", "value": 10 },
+    { "label": "Invoices, vouchers", "value": 8 },
+    { "label": "Business letters", "value": 6 }
   ]
 }

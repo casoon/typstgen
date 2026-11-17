@@ -1,0 +1,86 @@
+---
+title: Warum Typst, und ein erster Brief
+description: Einen Brief in zwanzig Zeilen Typst schreiben, mit typstgen übersetzen und sehen, wie ein Fehler gemeldet wird.
+order: 1
+---
+
+**English version:** [Tutorial in English](../../tutorial/first-document/)
+
+<div lang="de">
+
+Typst ist ein Satzsystem: Man schreibt Text mit wenigen Auszeichnungen in eine Datei, Typst setzt
+daraus ein PDF. Dieses Tutorial folgt einem roten Faden vom ersten Brief bis zur archivierten
+E-Rechnung, mit echten Befehlen und echten Ausgaben. Alle Befehle und Ausgaben auf diesen Seiten
+sind im Oktober 2026 mit typstgen 0.4 (Signieren: 0.5) und Typst 0.15.1 gelaufen.
+
+## Warum Typst
+
+Gegenüber einer Textverarbeitung liegt alles in einer lesbaren Textdatei. Sie lässt sich
+versionieren, vergleichen und automatisch übersetzen: dieselbe Quelle ergibt dasselbe PDF.
+Gegenüber LaTeX ist die Syntax knapper, Fehlermeldungen nennen Datei, Zeile und Spalte, und
+Vorlagen sind Funktionen in einer richtigen Programmiersprache.
+
+Überschriften beginnen mit `=`, Fettdruck steht zwischen Sternchen (`*fett*`), Funktionen beginnen
+mit `#`: `#table(…)`, `#image(…)`, `#bibliography(…)`. Formeln stehen zwischen Dollarzeichen. Daten
+kommen per `json(…)`, `csv(…)` oder `yaml(…)` direkt in das Dokument.
+
+typstgen übersetzt `.typ`-Dateien mit eingebetteter Typst-Engine, als Kommandozeile, als
+Rust-Bibliothek, als WebAssembly und als MCP-Server für KI-Agenten. Ein installiertes `typst`
+braucht es nicht.
+
+<Callout type="tip" title="Installieren">
+  `cargo install typstgen`, Rust ab 1.92. Danach läuft alles lokal, ohne Konto und ohne
+  Online-Editor.
+</Callout>
+
+## Ein Brief in zwanzig Zeilen
+
+**1. Quelltext.** Seitenformat und Schrift setzen, dann normaler Text, eine Überschrift und eine
+Tabelle.
+
+```typst
+#set page(paper: "a4", margin: 2.5cm)
+#set text(lang: "de", font: "Libertinus Serif", size: 11pt)
+
+#align(right)[Musterstadt, #datetime.today().display("[day].[month].[year]")]
+
+= Angebot für die Dokumentenstrecke
+
+Sehr geehrte Frau Beispiel,
+
+vielen Dank für Ihre Anfrage. Wir schlagen vor:
+
+#table(
+  columns: (1fr, auto),
+  table.header([*Leistung*], [*Preis*]),
+  [Vorlagen für Brief und Rechnung], [1.200 €],
+  [PDF-Erzeugung in der CI], [600 €],
+)
+```
+
+**2. Übersetzen.** typstgen schreibt das PDF neben die Quelle und gibt seinen Pfad aus.
+
+```text
+$ typstgen compile brief.typ
+brief.pdf
+```
+
+**3. Ein Tippfehler.** Aus `table.header` wird `table.heder`. typstgen bricht ab, nennt Datei,
+Zeile und Spalte und endet mit Exit-Code 1. Das brauchen später Skripte, CI und KI-Agenten.
+
+```text
+$ typstgen compile brief-fehler.typ
+error: typst compilation failed:
+brief-fehler.typ:14:9: error: function `table` does not contain field `heder`
+```
+
+Das Ergebnis ist ein PDF mit Datum, Überschrift und Tabelle:
+
+<img src="../../../tutorial/first-letter.webp" alt="Erste Seite des Briefs: Ort und Datum rechts oben, Überschrift „Angebot für die Dokumentenstrecke“, Anrede und eine Tabelle mit zwei Leistungen und Preisen" width="827" height="1170" style={{ maxWidth: "420px", width: "100%", height: "auto" }} />
+
+Das Datum kommt aus `datetime.today()`. Wie man es für reproduzierbare Dateien festlegt, zeigt
+[Archiving](../../guides/archiving/) (englisch).
+
+Weiter: [Ablauf, Vorlagen und Ablage](../templates-and-storage/).
+
+</div>

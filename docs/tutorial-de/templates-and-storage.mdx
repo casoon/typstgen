@@ -1,0 +1,86 @@
+---
+title: Ablauf, Vorlagen und Ablage
+description: Vom Datensatz zum geprüften Archiv, welches Werkzeug für welches Dokument, und wie man Daten, Quelle und PDF getrennt ablegt.
+order: 2
+---
+
+**English version:** [Tutorial in English](../../tutorial/templates-and-storage/)
+
+<div lang="de">
+
+Ein Dokument entsteht aus Daten und einer Vorlage. Was danach passiert, entscheidet, ob man ihm in
+acht Jahren noch trauen kann.
+
+<Diagram name="tutorial-workflow-de" />
+
+`check` meldet Fehler mit Datei, Zeile und Spalte, `preview` zeigt eine Seite als Bild, `compile`
+schreibt das PDF, auf Wunsch als PDF/A und bei Rechnungen mit eingebettetem ZUGFeRD-XML. Ein
+Manifest hält fest, woraus jedes PDF entstanden ist; `verify` baut es später neu und vergleicht
+Byte für Byte. Die drei Prüfschritte stehen auch einem KI-Agenten über MCP zur Verfügung.
+
+## Werkzeuge und Vorlagen
+
+Für die meisten Dokumente reicht typstgen mit einer Vorlage. Wer Berichte aus Programmcode erzeugt,
+nimmt eine Bibliothek.
+
+- **typstgen** übersetzt beliebige `.typ`-Dateien. Vorlagen findet es über `template_paths` in
+  `typstgen.toml`, Typst-Pakete wie `@preview/…` lädt es aus denselben Ordnern wie die Typst-CLI,
+  oder gar nicht, wenn man es so einstellt.
+- **[business-templates](https://github.com/casoon/typst-business-templates)** bringt 19
+  Geschäftsdokumente als Typst-Paket mit: Rechnung, Angebot, Gutschrift, Mahnung, Lieferschein,
+  Auftragsbestätigung, Brief, Zugangsdaten, Konzept, Vertrag, Dokumentation, Projektvorschlag,
+  Protokoll, SLA, Spezifikation, Aufgabenliste, Stundenzettel und Handout. Buchhaltungsdokumente
+  nehmen JSON-Daten, die übrigen benannte Parameter und den Text als Inhalt. Das Layout folgt
+  DIN 5008.
+- **RenderReport** ist eine Rust-Bibliothek für datengetriebene Berichte aus Komponenten
+  (Kennzahlen, Befunde, Tabellen, Diagramme), mit Typst als eingebetteter Engine; jedes PDF
+  entsteht als PDF/UA-1.
+
+<Callout type="deprecated" title="Nachfolger von docgen">
+  Die Vorlagen stammen aus `docgen`, das eingestellt ist. typstgen ersetzt dessen PDF-Erzeugung und
+  übersetzt dieselben Vorlagen und JSON-Dateien; Kunden- und Projektverwaltung, automatische Nummern
+  und `--encrypt` gibt es dort nicht.
+</Callout>
+
+Drei Dokumente aus business-templates, erzeugt mit typstgen 0.4.1 aus den Beispieldaten im
+Repository:
+
+<div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "16px" }}>
+  <figure style={{ margin: 0 }}>
+    <img src="../../../tutorial/template-offer.webp" alt="Angebot mit Briefkopf, Empfängeradresse, Positionstabelle und Summen" width="827" height="1170" style={{ width: "100%", height: "auto" }} />
+    <figcaption>Angebot, Beispieldaten „it-consultant“.</figcaption>
+  </figure>
+  <figure style={{ margin: 0 }}>
+    <img src="../../../tutorial/template-proposal.webp" alt="Titelseite eines Projektvorschlags mit Projektdaten in einem gerahmten Kasten und Schlagwörtern am unteren Rand" width="827" height="1170" style={{ width: "100%", height: "auto" }} />
+    <figcaption>Projektvorschlag, Titelseite.</figcaption>
+  </figure>
+  <figure style={{ margin: 0 }}>
+    <img src="../../../tutorial/template-protocol.webp" alt="Titelseite eines Besprechungsprotokolls mit Datum, Ort, Moderation, Teilnehmenden und Entschuldigten" width="827" height="1170" style={{ width: "100%", height: "auto" }} />
+    <figcaption>Besprechungsprotokoll, Titelseite.</figcaption>
+  </figure>
+</div>
+
+## Daten, Quelle, PDF: getrennt ablegen
+
+Was sich ändert, sind die Daten. Was gleich bleibt, ist die Vorlage. Das PDF ist nur das Ergebnis.
+
+Bewährt hat sich ein Ordner je Dokumentart und Jahr, der Dateiname ist die Dokumentnummer:
+`invoices/2026/RE-2026-001.json` enthält die Daten, `RE-2026-001.typ` daneben ist ein dünner
+Wrapper, der Vorlage und Daten zusammenführt. Stammdaten wie `company.json` liegen einmal zentral.
+
+Daten, Wrapper und Manifest sind kleine Textdateien und gehören in die Versionsverwaltung; die
+Historie zeigt, wer was wann geändert hat. Die PDFs gehören ins Archiv, nicht ins Git. Das Manifest
+verbindet beide.
+
+Wer eine Wissensbasis für KI-Systeme pflegt, hält dort eine kompakte Zusammenfassung jedes Vorgangs
+und verweist mit `document_id` und `typst_source` auf die Quelle. Das System liest den Eintrag, der
+Kunde bekommt das PDF; PDFs gehören nicht in den Suchindex.
+
+<Callout type="tip" title="Nummernkreise">
+  Ein festes Schema wie `RE-JJJJ-NNN` (Rechnung) oder `AN-JJJJ-NNN` (Angebot) macht Dateien, Daten
+  und Wissenseinträge ohne Datenbank auffindbar.
+</Callout>
+
+Weiter: [Seminararbeit mit Literaturverzeichnis](../thesis/).
+
+</div>

@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "type": "timeline",
+  "title": "E-Rechnungspflicht im inländischen B2B-Verkehr",
+  "description": "Seit 2025 müssen Unternehmen E-Rechnungen empfangen können. Papier- und andere Rechnungen sind beim Ausstellen bis Ende 2026 erlaubt, 2027 nur noch bei höchstens 800.000 Euro Vorjahresumsatz; ab 2028 ist die E-Rechnung allgemein Pflicht.",
+  "source": "§ 27 Abs. 38 UStG; BMF-Schreiben vom 15.10.2024 und 15.10.2025 (Stand 11.10.2026)",
+  "locale": "de",
+  "width": 960,
+  "height": 270,
+  "timeline": {
+    "items": [
+      { "id": "receive", "label": "Empfang Pflicht", "at": "2025-01-01" },
+      {
+        "id": "all",
+        "label": "Papier und andere Formate erlaubt",
+        "start": "2025-01-01",
+        "end": "2026-12-31"
+      },
+      {
+        "id": "small",
+        "label": "nur bis 800.000 € Vorjahresumsatz",
+        "start": "2027-01-01",
+        "end": "2027-12-31",
+        "after": ["all"]
+      },
+      {
+        "id": "edi",
+        "label": "EDI-Verfahren zulässig",
+        "start": "2025-01-01",
+        "end": "2027-12-31"
+      },
+      {
+        "id": "mandatory",
+        "label": "E-Rechnung allgemein Pflicht",
+        "at": "2028-01-01",
+        "after": ["small", "edi"]
+      }
+    ]
+  }
+}

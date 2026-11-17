@@ -1,0 +1,73 @@
+---
+title: Seminararbeit mit Literaturverzeichnis
+description: Titelblatt, Verzeichnisse, Formeln, Zitate und Anhang aus einem Paket, offline und reproduzierbar als PDF/A-2b gebaut.
+order: 3
+---
+
+**English version:** [Tutorial in English](../../tutorial/thesis/)
+
+<div lang="de">
+
+Titelblatt, Verzeichnisse, Formeln, Zitate und Anhang kommen aus einem Paket. Die Arbeit selbst
+ist nur Text.
+
+Die Vorlage `@local/thesis` liegt im Beispielordner von typstgen. Sie setzt Titelblatt,
+Zusammenfassung, Inhalts-, Abbildungs- und Tabellenverzeichnis, römische und arabische
+Seitenzahlen, nummerierte Formeln, Literaturverzeichnis, Anhang und Eigenständigkeitserklärung, auf
+Deutsch oder Englisch.
+
+Zitiert wird mit `@schlüssel` aus einer BibTeX- oder Hayagriva-Datei; Typst bringt die Stile mit,
+etwa APA, IEEE, Chicago oder DIN ISO 690. Abbildungen wie Ablaufdiagramme kommen als SVG, zum
+Beispiel aus Chartlet.
+
+<Callout type="caution" title="Eigenständigkeitserklärung">
+  Der mitgelieferte Text ist ein Vorschlag. Hochschulen schreiben meist ihren eigenen Wortlaut vor;
+  der Parameter `declaration` nimmt ihn auf.
+</Callout>
+
+<img src="../../../tutorial/thesis-content.webp" alt="Seite einer Seminararbeit mit nummerierten Kapiteln, einer Formel, Zitaten im APA-Stil und einer Tabelle" width="827" height="1170" style={{ maxWidth: "420px", width: "100%", height: "auto" }} />
+
+`examples/thesis.pdf`, Seite 4, PDF/A-2b.
+
+## Eine Arbeit offline und reproduzierbar bauen
+
+Die Seminararbeit als PDF/A-2b übersetzen, ohne dass etwas aus dem Netz nachgeladen wird.
+
+**1. Konfiguration.** Die Vorlage liegt als Paket im Projekt; Downloads und Systemschriften sind
+aus.
+
+```toml
+# typstgen.toml
+template_paths = ["templates"]
+package_path = "packages"      # enthält local/thesis/0.1.0
+download_packages = false      # nichts nachladen
+use_system_fonts = false
+```
+
+**2. Übersetzen.** Norm und Zeitstempel festlegen: zwei Läufe ergeben byte-gleiche Dateien.
+
+```text
+$ typstgen compile thesis.typ --config typstgen.toml \
+    --pdf-standard a-2b --creation-timestamp 1759276800
+thesis.pdf
+```
+
+**3. Wenn ein Paket fehlt.** Mit `download_packages = false` bricht der Build ab, statt etwas
+nachzuladen:
+
+```text
+error: typst compilation failed:
+paper.typ:1:9: error: package not found (searched for @preview/oxifmt:0.2.1)
+```
+
+Das Ergebnis sind sieben Seiten mit Verzeichnissen, einer Chartlet-Abbildung, Formel, Tabelle und
+fünf echten Quellen im APA-Stil; veraPDF meldet PDF/A-2b-konform.
+
+<img src="../../../tutorial/thesis-figure.webp" alt="Seite der Seminararbeit mit einem Ablaufdiagramm in drei Spalten (Quellen, Übersetzung, Archiv), darunter eine Tabelle und ein Codeblock" width="827" height="1170" style={{ maxWidth: "420px", width: "100%", height: "auto" }} />
+
+Abbildung 1, erstellt mit Chartlet, Seite 5. Mehr zu Paketen und Schriften (englisch):
+[Packages and bibliography](../../guides/packages-and-bibliography/), [Fonts](../../guides/fonts/).
+
+Weiter: [Rechnungen mit ZUGFeRD](../e-invoice/).
+
+</div>

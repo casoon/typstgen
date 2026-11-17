@@ -1,37 +1,37 @@
 {
   "schemaVersion": 1,
   "type": "timeline",
-  "title": "E-Rechnungspflicht im inländischen B2B-Verkehr",
-  "description": "Seit 2025 müssen Unternehmen E-Rechnungen empfangen können. Papier- und andere Rechnungen sind beim Ausstellen bis Ende 2026 erlaubt, 2027 nur noch bei höchstens 800.000 Euro Vorjahresumsatz; ab 2028 ist die E-Rechnung allgemein Pflicht.",
-  "source": "§ 27 Abs. 38 UStG; BMF-Schreiben vom 15.10.2024 und 15.10.2025 (Stand 11.10.2026)",
-  "locale": "de",
+  "title": "E-invoice obligation in German domestic B2B",
+  "description": "Since 2025, businesses must be able to receive e-invoices. Paper and other invoices may still be issued until the end of 2026, in 2027 only with prior-year turnover of at most 800,000 euros; from 2028 e-invoices are mandatory for everyone.",
+  "source": "§ 27 (38) UStG; BMF letters of 15 October 2024 and 15 October 2025 (as of 11 October 2026)",
+  "locale": "en",
   "width": 960,
   "height": 270,
   "timeline": {
     "items": [
-      { "id": "receive", "label": "Empfang Pflicht", "at": "2025-01-01" },
+      { "id": "receive", "label": "Receiving mandatory", "at": "2025-01-01" },
       {
         "id": "all",
-        "label": "Papier und andere Formate erlaubt",
+        "label": "Paper and other formats allowed",
         "start": "2025-01-01",
         "end": "2026-12-31"
       },
       {
         "id": "small",
-        "label": "nur bis 800.000 € Vorjahresumsatz",
+        "label": "only up to €800,000 prior-year turnover",
         "start": "2027-01-01",
         "end": "2027-12-31",
         "after": ["all"]
       },
       {
         "id": "edi",
-        "label": "EDI-Verfahren zulässig",
+        "label": "EDI procedures allowed",
         "start": "2025-01-01",
         "end": "2027-12-31"
       },
       {
         "id": "mandatory",
-        "label": "E-Rechnung allgemein Pflicht",
+        "label": "E-invoice mandatory for all",
         "at": "2028-01-01",
         "after": ["small", "edi"]
       }

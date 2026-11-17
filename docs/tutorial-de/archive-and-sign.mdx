@@ -1,0 +1,157 @@
+---
+title: Archivieren, prüfen und signieren
+description: Einen Build im Manifest protokollieren, später prüfen, eine Rechnung signieren und mit Zeitstempel belegen und das Archiv in der CI kontrollieren.
+order: 5
+---
+
+**English version:** [Tutorial in English](../../tutorial/archive-and-sign/)
+
+<div lang="de">
+
+PDF/A sorgt dafür, dass eine Datei lesbar bleibt. Dass sie unverändert ist, muss man zusätzlich
+belegen.
+
+`typstgen compile --manifest archive.json` schreibt zu jedem PDF auf, aus welcher Quelle, mit
+welchen Optionen und aus welchen Dateien es entstand, mit SHA-256 von PDF, Vorlagen, Daten, Bildern,
+Paketdateien und Schriften. `typstgen verify` prüft später drei Dinge: Das abgelegte PDF ist
+unverändert, ein Neubau liest dieselben Dateien, und er ergibt dieselben Bytes. Damit das gelingt,
+braucht jedes Dokument einen festen Zeitstempel und festgelegte Schriften und Pakete.
+
+<Callout type="caution" title="Rechtlicher Rahmen, Stand 11.10.2026">
+  Rechnungen und Buchungsbelege werden seit 2025 acht Jahre aufbewahrt (§ 147 AO, § 14b UStG). Die
+  GoBD schreiben weder ein Archivsystem noch Prüfsummen vor; sie nennen Versionierung und
+  Protokollierung als Beispiele für Unveränderbarkeit. Bei Ausgangsrechnungen ist nach GoBD Rz. 76
+  keine Bildkopie nötig, wenn sich jederzeit ein inhaltlich identisches Exemplar erzeugen lässt.
+  PDF/A ist nicht vorgeschrieben. Keine Rechtsberatung.
+</Callout>
+
+<Diagram name="tutorial-retention-de" />
+
+## Einen Build protokollieren und prüfen
+
+Ein PDF mit Manifest erzeugen, prüfen, eine Änderung an der Quelle vornehmen und sehen, was
+`verify` meldet.
+
+```text
+$ typstgen compile brief.typ --pdf-standard a-2b \
+    --creation-timestamp 1790000000 --manifest archive.json
+brief.pdf
+$ typstgen verify
+ok      brief.pdf
+1 of 1 documents verified
+```
+
+Ein Preis in `brief.typ` wird geändert, ohne neu zu protokollieren. `verify` nennt die Datei und
+endet mit Exit-Code 1:
+
+```text
+$ typstgen verify
+FAILED  brief.pdf
+        changed: brief.typ
+        the rebuild differs from the recorded PDF
+0 of 1 documents verified
+```
+
+Jede Änderung an Quelle, Daten, Vorlage, Paket oder Schrift fällt auf, ebenso ein verändertes PDF.
+Wird die Änderung zurückgenommen, meldet `verify` wieder „1 of 1 documents verified“. Mehr
+(englisch): [Archiving](../../guides/archiving/).
+
+## Signieren und das Archiv mit Zeitstempel belegen
+
+Eine ZUGFeRD-Rechnung mit pyHanko signieren, prüfen, dass sie PDF/A und gültige E-Rechnung bleibt,
+und das Manifest mit einem Zeitstempel versehen.
+
+<Callout type="note" title="Brauche ich das?">
+  Für Rechnungen nein: § 14 UStG nennt die qualifizierte Signatur nur als eine Möglichkeit, ein
+  innerbetriebliches Kontrollverfahren genügt. Auch die GoBD verlangen weder Signatur noch
+  Zeitstempel. Rechtswirkung hat erst eine qualifizierte Signatur, etwa für die Schriftform nach
+  § 126a BGB; die gibt es nur über einen Vertrauensdiensteanbieter. Stand 12.10.2026, keine
+  Rechtsberatung.
+</Callout>
+
+**Signieren.** typstgen signiert nicht selbst. pyHanko (ab 0.35.2) hängt eine PAdES-Signatur mit
+Zeitstempel als neue Revision an; die Bytes von typstgen bleiben unverändert.
+
+```text
+$ pyhanko sign addsig --field Signature1 --use-pades \
+    --timestamp-url http://timestamp.digicert.com \
+    pemder --key key.pem --cert cert.pem rechnung.pdf rechnung-signiert.pdf
+```
+
+**Prüfen.** Signatur gültig und mit Zeitstempel, das PDF bleibt PDF/A-3b, und Mustang meldet die
+Rechnung weiter als gültig. Gelaufen am 12.10.2026 mit pyHanko 0.37.0 und dem DigiCert-Zeitstempeldienst;
+die Ausgabe ist auf die relevanten Zeilen gekürzt.
+
+```text
+$ pyhanko sign validate --pretty-print --trust cert.pem rechnung-signiert.pdf
+…
+Signature timestamp token: 2026-10-12T11:42:09+00:00
+This timestamp is backed by a time stamping authority.
+The signature covers the entire file.
+The signature is judged VALID.
+$ verapdf --flavour 3b rechnung-signiert.pdf
+PASS rechnung-signiert.pdf 3b
+```
+
+**Archiv prüfen.** `verify` findet den protokollierten Build am Anfang der signierten Datei und
+vermerkt die Signatur. Angehängte Revisionen ohne Signatur gelten als Änderung.
+
+```text
+$ typstgen verify
+ok      rechnung.pdf
+        note: signed after recording: the recorded PDF is unchanged, 1 revision(s) with a signature appended; check the signature with a PDF signature validator
+1 of 1 documents verified
+```
+
+**Manifest mit Zeitstempel.** Ein RFC-3161-Zeitstempel über `archive.json` belegt, dass alle darin
+verzeichneten Prüfsummen zu diesem Zeitpunkt existierten, ohne ein PDF zu ändern. Die `.tsr`-Datei
+kommt mit dem Manifest ins Git.
+
+```text
+$ openssl ts -query -data archive.json -sha256 -cert -out archive.tsq
+$ curl -s -H "Content-Type: application/timestamp-query" \
+    --data-binary @archive.tsq http://timestamp.digicert.com -o archive.json.tsr
+$ openssl ts -verify -data archive.json -in archive.json.tsr \
+    -CAfile "$(brew --prefix)/etc/ca-certificates/cert.pem"
+Verification: OK
+```
+
+Die Rechnung ist signiert, bleibt reproduzierbar und lässt sich weiter mit `verify` prüfen; das
+Manifest hat einen überprüfbaren Zeitpunkt. Die freien Zeitstempeldienste sind nicht qualifiziert
+im Sinne von eIDAS. Mehr (englisch): [Signing](../../guides/signing/).
+
+## Prüfen vor jedem Push
+
+Lokal ist die Prüfung verbindlich, in der CI ist sie der Nachweis beim Release. Vor jedem Push
+läuft `typstgen verify`, als Skript oder als pre-push-Hook. In der CI fehlen die PDFs, weil sie im
+Archiv liegen; dort prüft `verify --rebuild-only` nur, ob jede Quelle die protokollierten Bytes
+ergibt.
+
+Damit ein Neubau auf einem anderen Rechner gleich ausfällt, gehören Schriften und Pakete ins
+Repository: `use_system_fonts = false`, `font_paths = ["fonts"]`, `package_path` mit
+`download_packages = false`. Eine Vorlage, die eine Systemschrift wie Helvetica anfordert, sieht
+unter Linux sonst anders aus.
+
+Für private Repositories: nur bei Release-Tags und auf Abruf, mit Zeitlimit. Das spart
+Actions-Minuten.
+
+```yaml
+# .github/workflows/verify.yml
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - run: cargo install typstgen --version 0.5.0 --locked
+      - run: typstgen verify archive.json --rebuild-only
+```
+
+Mehr (englisch): [CI](../../guides/ci/). Weiter: [Ein Agent, der seine Fehler selbst findet](../ai-agent/).
+
+</div>
