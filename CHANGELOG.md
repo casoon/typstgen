@@ -8,7 +8,7 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Changed
 
-- **Pages:** the project site uses the current shared theme (0.16.0).
+- **Pages:** the project site uses the current shared theme (0.16.2).
 
 
 ## [0.6.2] - 2026-10-31
