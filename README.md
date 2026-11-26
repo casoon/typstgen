@@ -112,6 +112,10 @@ generation. docgen is discontinued; its templates live on as the Typst package
 packages) comes from [`embedded-typst`](https://github.com/casoon/embedded-typst), shared with
 [`renderreport`](https://github.com/casoon/renderreport).
 
+## Author
+
+Built and maintained by [Jörn Seidel](https://www.casoon.de/joern-seidel/) ([CASOON](https://www.casoon.de/)). Background and design decisions are described in an article on Insights (in German): [Typst und typstgen: Angebote, Rechnungen und Abschlussarbeiten aus Daten erzeugen und archivieren](https://insights.casoon.de/artikel/typst-leitfaden-dokumente-erzeugen-pruefen-archivieren/).
+
 ## License
 
 MIT
